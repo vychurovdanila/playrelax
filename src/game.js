@@ -1,0 +1,383 @@
+// playrelax — игровая логика (рефакторинг прототипа).
+// Стек: ванильный JS + Canvas 2D.
+// https://tetris.fandom.com/wiki/Tetris_Guideline
+
+/* ============================================================
+   Объявления вверху файла — до функций, которые их используют.
+   (Хрупкость сессии 1 устранена: canvas/context/dataset объявлены здесь.)
+   ============================================================ */
+
+const canvas = document.getElementById('game');
+const context = canvas.getContext('2d');
+const grid = 32;
+
+// Очередь фигур (заполняется generateSequence).
+const tetrominoSequence = [];
+
+// Игровое поле 10×20; первые строки (-2, -1) — за экраном (старт фигур).
+// 2-мерный массив: playfield[row][col].
+const playfield = [];
+
+// Как рисуется каждый тетромино.
+// @see https://tetris.fandom.com/wiki/SRS
+const tetrominos = {
+  'I': [
+    [0,0,0,0],
+    [1,1,1,1],
+    [0,0,0,0],
+    [0,0,0,0]
+  ],
+  'J': [
+    [1,0,0],
+    [1,1,1],
+    [0,0,0],
+  ],
+  'L': [
+    [0,0,1],
+    [1,1,1],
+    [0,0,0],
+  ],
+  'O': [
+    [1,1],
+    [1,1],
+  ],
+  'S': [
+    [0,1,1],
+    [1,1,0],
+    [0,0,0],
+  ],
+  'Z': [
+    [1,1,0],
+    [0,1,1],
+    [0,0,0],
+  ],
+  'T': [
+    [0,1,0],
+    [1,1,1],
+    [0,0,0],
+  ]
+};
+
+// Цвет каждого тетромино.
+const colors = {
+  'I': 'white',
+  'O': 'white',
+  'T': 'white',
+  'S': 'white',
+  'Z': 'white',
+  'J': 'white',
+  'L': 'white'
+};
+
+// Заполняем пустое поле (строки -2..19, столбцы 0..9).
+for (let row = -2; row < 20; row++) {
+  playfield[row] = [];
+
+  for (let col = 0; col < 10; col++) {
+    playfield[row][col] = 0;
+  }
+}
+
+// Состояние игры.
+let count = 0;
+let tetromino = null;
+let rAF = null;  // отслеживаем кадр анимации, чтобы при необходимости отменить
+
+/* ============================================================
+   Функции игры.
+   ============================================================ */
+
+// Случайное целое в диапазоне [min,max].
+// @see https://stackoverflow.com/a/1527820/2124254
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Генерируем новую последовательность тетромино.
+// @see https://tetris.fandom.com/wiki/Random_Generator
+function generateSequence() {
+  const sequence = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+
+  while (sequence.length) {
+    const rand = getRandomInt(0, sequence.length - 1);
+    const name = sequence.splice(rand, 1)[0];
+    tetrominoSequence.push(name);
+  }
+}
+
+// Берём следующую фигуру из последовательности.
+function getNextTetromino() {
+  if (tetrominoSequence.length === 0) {
+    generateSequence();
+  }
+
+  const name = tetrominoSequence.pop();
+  const matrix = tetrominos[name];
+
+  // I и O стартуют по центру, остальные — в левой середине.
+  const col = playfield[0].length / 2 - Math.ceil(matrix[0].length / 2);
+
+  // I стартует на строке 21 (-1), остальные на строке 22 (-2).
+  const row = name === 'I' ? -1 : -2;
+
+  return {
+    name: name,      // имя фигуры (L, O, и т.д.)
+    matrix: matrix,  // текущая матрица поворота
+    row: row,        // текущая строка (стартует за экраном)
+    col: col         // текущий столбец
+  };
+}
+
+// Поворот матрицы NxN на 90°.
+// @see https://codereview.stackexchange.com/a/186834
+function rotate(matrix) {
+  const N = matrix.length - 1;
+  const result = matrix.map((row, i) =>
+    row.map((val, j) => matrix[N - j][i])
+  );
+
+  return result;
+}
+
+// Проверяем, что новая матрица/строка/столбец допустимы.
+function isValidMove(matrix, cellRow, cellCol) {
+  for (let row = 0; row < matrix.length; row++) {
+    for (let col = 0; col < matrix[row].length; col++) {
+      if (matrix[row][col] && (
+          // выход за границы игрового поля
+          cellCol + col < 0 ||
+          cellCol + col >= playfield[0].length ||
+          cellRow + row >= playfield.length ||
+          // столкновение с другой фигурой
+          playfield[cellRow + row][cellCol + col])
+        ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+// Кладём тетромино на игровое поле.
+function placeTetromino() {
+  for (let row = 0; row < tetromino.matrix.length; row++) {
+    for (let col = 0; col < tetromino.matrix[row].length; col++) {
+      if (tetromino.matrix[row][col]) {
+
+        // Бесконечный режим: если фигура частично за верхней границей,
+        // верхний ряд теряется, поле сдвигается вниз. Проиграть невозможно.
+        if (tetromino.row + row < 0) {
+          for (let r = playfield.length - 1; r > 0; r--) {
+            playfield[r] = [...playfield[r - 1]];
+          }
+          playfield[0] = new Array(10).fill(0);
+          tetromino = getNextTetromino();
+          return;
+        }
+
+        playfield[tetromino.row + row][tetromino.col + col] = tetromino.name;
+      }
+    }
+  }
+
+  // Проверяем сброс линий снизу вверх.
+  for (let row = playfield.length - 1; row >= 0; ) {
+    if (playfield[row].every(cell => !!cell)) {
+
+      // Опускаем каждую строку выше этой на одну вниз.
+      for (let r = row; r >= 0; r--) {
+        for (let c = 0; c < playfield[r].length; c++) {
+          playfield[r][c] = playfield[r-1] ? playfield[r-1][c] : 0;
+        }
+      }
+    }
+    else {
+      row--;
+    }
+  }
+
+  tetromino = getNextTetromino();
+}
+
+// Игровой цикл.
+function loop() {
+  rAF = requestAnimationFrame(loop);
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Рисуем игровое поле.
+  for (let row = 0; row < 20; row++) {
+    for (let col = 0; col < 10; col++) {
+      if (playfield[row][col]) {
+        const name = playfield[row][col];
+        context.fillStyle = colors[name];
+
+        // на 1 px меньше grid — создаёт эффект сетки
+        context.fillRect(col * grid, row * grid, grid - 1, grid - 1);
+      }
+    }
+  }
+
+  // Рисуем активную фигуру.
+  if (tetromino) {
+
+    // фигура падает каждые 35 кадров
+    if (++count > 35) {
+      tetromino.row++;
+      count = 0;
+
+      // ставим фигуру, если во что-то упирается
+      if (!isValidMove(tetromino.matrix, tetromino.row, tetromino.col)) {
+        tetromino.row--;
+        placeTetromino();
+      }
+    }
+
+    context.fillStyle = colors[tetromino.name];
+
+    for (let row = 0; row < tetromino.matrix.length; row++) {
+      for (let col = 0; col < tetromino.matrix[row].length; col++) {
+        if (tetromino.matrix[row][col]) {
+
+          // на 1 px меньше grid — создаёт эффект сетки
+          context.fillRect((tetromino.col + col) * grid, (tetromino.row + row) * grid, grid - 1, grid - 1);
+        }
+      }
+    }
+  }
+}
+
+/* ============================================================
+   Управление: клавиатура (десктоп) + touch (мобилки).
+   ============================================================ */
+
+// Сдвиг фигуры по горизонтали. dx = -1 (влево) / +1 (вправо).
+function moveHorizontal(dx) {
+  if (!tetromino) return;
+  const col = tetromino.col + dx;
+  if (isValidMove(tetromino.matrix, tetromino.row, col)) {
+    tetromino.col = col;
+  }
+}
+
+// Поворот активной фигуры.
+function rotatePiece() {
+  if (!tetromino) return;
+  const matrix = rotate(tetromino.matrix);
+  if (isValidMove(matrix, tetromino.row, tetromino.col)) {
+    tetromino.matrix = matrix;
+  }
+}
+
+// Сдвиг фигуры вниз на 1 клетку; если упирается — ставим на поле.
+function moveDown() {
+  if (!tetromino) return;
+  const row = tetromino.row + 1;
+
+  if (!isValidMove(tetromino.matrix, row, tetromino.col)) {
+    // дальше вниз нельзя — фиксируем текущую позицию и ставим фигуру
+    tetromino.row = row - 1;
+    placeTetromino();
+    return;
+  }
+
+  tetromino.row = row;
+}
+
+// --- Клавиатура (современный API: e.key) ---
+document.addEventListener('keydown', function(e) {
+
+  // стрелки влево/вправо (движение)
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    moveHorizontal(e.key === 'ArrowLeft' ? -1 : 1);
+  }
+
+  // стрелка вверх (поворот)
+  if (e.key === 'ArrowUp') {
+    rotatePiece();
+  }
+
+  // стрелка вниз (ускоренное падение)
+  if (e.key === 'ArrowDown') {
+    moveDown();
+  }
+});
+
+// --- Touch-управление ---
+// Порог свайпа в пикселях: 30px = распознан свайп.
+const SWIPE_THRESHOLD = 30;
+let touchStartX = 0;
+let touchStartY = 0;
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  const touch = e.changedTouches[0];
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', function(e) {
+  // preventDefault — чтобы страница не скроллилась при свайпах
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
+
+  // Тап (короткое касание без движения) — поворот.
+  if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
+    rotatePiece();
+    return;
+  }
+
+  // Свайп: определяем доминирующую ось.
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // влево/вправо
+    moveHorizontal(dx > 0 ? 1 : -1);
+  } else {
+    // вниз — ускоренное падение на 1 клетку
+    if (dy > 0) {
+      moveDown();
+    }
+  }
+}, { passive: false });
+
+/* ============================================================
+   Адаптивный канвас: логический размер 320×640 не меняется,
+   меняется только CSS-отображение с сохранением пропорций 1:2.
+   TODO: devicePixelRatio для Retina — сессия 3/4.
+   ============================================================ */
+function resizeCanvas() {
+  const ratio = canvas.width / canvas.height; // 1:2
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight;
+
+  let w = maxW;
+  let h = w / ratio;
+
+  if (h > maxH) {
+    h = maxH;
+    w = h * ratio;
+  }
+
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+/* ============================================================
+   Старт игры.
+   ============================================================ */
+tetromino = getNextTetromino();
+resizeCanvas();
+rAF = requestAnimationFrame(loop);
+
+
+

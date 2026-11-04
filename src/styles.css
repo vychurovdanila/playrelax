@@ -1,0 +1,57 @@
+/* ---------- База (перенесено из прототипа) ---------- */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* touch-action: none — браузер не перехватывает свайпы (критично для touch) */
+  touch-action: none;
+  /* user-select: none — не выделяем текст/элементы при жестах */
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+canvas {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  opacity: 0.70;
+  /* touch-action: none — дублируем на канвасе */
+  touch-action: none;
+  /* Адаптив с сохранением пропорций 1:2 (320×640) */
+  max-width: 100vw;
+  max-height: 100vh;
+  width: auto;
+  height: auto;
+}
+
+/* ---------- Видеофон ---------- */
+.bg-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(1px);
+  z-index: -99;
+  pointer-events: none;
+}
+
+/* ---------- Спикер (заглушка, задел на сессию звука) ---------- */
+.speaker {
+  position: absolute;
+  z-index: 99;
+  text-decoration: none;
+}
+
+/* ---------- Адаптив: на узких экранах канвас занимает экран ---------- */
+@media (max-width: 600px) {
+  canvas {
+    border: none;
+  }
+}
