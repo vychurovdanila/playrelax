@@ -621,27 +621,29 @@ function switchWorld() {
 // свайп двумя пальцами = смена мира (паузу не трогает).
 const TWO_FINGER_SWIPE_THRESHOLD = 30;
 
-let touchStartX = null;
-let touchStartY = null;
+// Отдельное состояние для ДВУХпальцевого жеста: одиночный свайп игры
+// использует свои touchStartX/touchStartY (объявлены выше) и нам не мешает.
+let twoFingerStartX = null;
+let twoFingerStartY = null;
 let twoFingerMoved = false; // Флаг: был ли это свайп, а не тап
 
 document.addEventListener('touchstart', (e) => {
   if (e.touches.length === 2) {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
+    twoFingerStartX = e.touches[0].clientX;
+    twoFingerStartY = e.touches[0].clientY;
     twoFingerMoved = false;
     // Двухпальцевый жест — не для игры: гасим его ДО канваса.
     e.stopImmediatePropagation();
   } else {
-    touchStartX = null;
+    twoFingerStartX = null;
   }
 }, { passive: true, capture: true });
 
 document.addEventListener('touchmove', (e) => {
   // Если двигаем двумя пальцами, проверяем, не свайп ли это
-  if (touchStartX !== null && e.touches.length === 2) {
-    const distX = Math.abs(e.touches[0].clientX - touchStartX);
-    const distY = Math.abs(e.touches[0].clientY - touchStartY);
+  if (twoFingerStartX !== null && e.touches.length === 2) {
+    const distX = Math.abs(e.touches[0].clientX - twoFingerStartX);
+    const distY = Math.abs(e.touches[0].clientY - twoFingerStartY);
     if (distX > TWO_FINGER_SWIPE_THRESHOLD || distY > TWO_FINGER_SWIPE_THRESHOLD) {
       twoFingerMoved = true;
     }
@@ -650,7 +652,7 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: true, capture: true });
 
 document.addEventListener('touchend', (e) => {
-  if (touchStartX !== null && e.changedTouches.length > 0) {
+  if (twoFingerStartX !== null && e.changedTouches.length > 0) {
     // Пока на экране остался хотя бы один палец — ждём, иначе обработаем дважды.
     if (e.touches.length === 0) {
       if (twoFingerMoved) {
@@ -663,8 +665,8 @@ document.addEventListener('touchend', (e) => {
         isPaused = !isPaused;
         count = 0;
       }
-      touchStartX = null;
-      touchStartY = null;
+      twoFingerStartX = null;
+      twoFingerStartY = null;
     }
     // Гасим жест, чтобы канвас не воспринял его как тап/свайп игры.
     e.stopImmediatePropagation();
