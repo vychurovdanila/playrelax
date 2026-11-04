@@ -450,30 +450,65 @@ window.addEventListener('resize', resizeCanvas);
    музыку до старта игры — при любом тапе по экрану.
    ============================================================ */
 
-// Кнопки управления музыкой.
-const btnMusicPlay = document.getElementById('music-play');
-const btnMusicNext = document.getElementById('music-next');
-const btnMusicShuffle = document.getElementById('music-shuffle');
+/* ============================================================
+   Музыка: кнопок переключения/паузы/shuffle больше нет — осталась
+   одна кнопка вкл/выкл звука (#btn-unmute).
+   Порядок треков СЛУЧАЙНЫЙ по умолчанию (см. forceShuffle).
+   ============================================================ */
 
-if (btnMusicPlay) {
-  btnMusicPlay.addEventListener('click', function() {
-    if (window.audioManager.playing) {
-      window.audioManager.pause();
+// Принудительно включаем случайный порядок одним вызовом toggleShuffle().
+// isShuffle по умолчанию false, но пользователь мог сохранить в localStorage
+// режим «по порядку» — поэтому проверяем флаг и переключаем только если нужно.
+// Своего метода включения нет: используем существующий API audio.js.
+function forceShuffle(manager) {
+  if (!manager) return;
+  if (typeof manager.toggleShuffle !== 'function') return;
+  if (manager.isShuffle) return; // уже случайный — второй вызов выключил бы его
+  manager.toggleShuffle();
+}
+
+// Запуск музыки со случайным порядком: shuffle → play.
+// Музыка включается всегда, даже если игрок до старта нажал «выключить звук»,
+// иначе кнопка звука рассинхронизируется с реальным состоянием.
+function startMusic(manager) {
+  if (!manager) return;
+  forceShuffle(manager);
+  manager.muted = false;
+  manager.unmute();
+  manager.play();
+  updateUnmuteUI();
+}
+
+// Кнопка вкл/выкл звука.
+const btnUnmute = document.getElementById('btn-unmute');
+
+// Приводим иконку/подпись кнопки к текущему состоянию звука.
+function updateUnmuteUI() {
+  const manager = window.audioManager;
+  if (!btnUnmute || !manager) return;
+
+  const isMuted = !!manager.muted;
+  btnUnmute.textContent = isMuted ? '🔇' : '🔊';
+  btnUnmute.setAttribute('aria-pressed', isMuted ? 'true' : 'false');
+  btnUnmute.setAttribute('aria-label', isMuted ? 'Включить звук' : 'Выключить звук');
+}
+
+if (btnUnmute) {
+  btnUnmute.addEventListener('click', function() {
+    const manager = window.audioManager;
+    if (!manager) return;
+
+    // Первый тап может случиться до старта игры: Howl ещё не создан.
+    if (!manager.inited) manager.init();
+    // Музыка не играла (пауза/ещё не стартовала) — включаем её.
+    if (!manager.playing) forceShuffle(manager);
+
+    if (manager.muted) {
+      manager.unmute();
     } else {
-      window.audioManager.play();
+      manager.mute();
     }
-  });
-}
-
-if (btnMusicNext) {
-  btnMusicNext.addEventListener('click', function() {
-    window.audioManager.next();
-  });
-}
-
-if (btnMusicShuffle) {
-  btnMusicShuffle.addEventListener('click', function() {
-    window.audioManager.toggleShuffle();
+    updateUnmuteUI();
   });
 }
 
@@ -502,11 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
       gameCanvas.style.opacity = '0.70';
       gameCanvas.style.pointerEvents = 'auto';
       
-      // 3. Запускаем звук
-      if (window.audioManager) {
-        window.audioManager.init();
-        window.audioManager.play();
-      }
+      // 3. Запускаем звук: случайный порядок треков + воспроизведение.
+      startMusic(window.audioManager);
     });
   }
 });

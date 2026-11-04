@@ -24,12 +24,10 @@
     <button id="start-btn" type="button">Начать</button>
   </div>
 
-  <!-- Панель управления музыкой -->
-  <div id="music-controls">
-    <button id="music-play" type="button" aria-label="Играть">▶</button>
-    <button id="music-next" type="button" aria-label="Следующий трек">⏭</button>
-    <button id="music-shuffle" type="button" aria-label="Режим: По порядку" data-active="false">🔀</button>
-  </div>
+  <!-- Панель управления музыкой: осталась ОДНА кнопка — вкл/выкл звука.
+       Переключение трека и shuffle больше не нужны: порядок треков случайный
+       по умолчанию (см. forceShuffle в src/game.js). -->
+  <button id="btn-unmute" type="button" aria-label="Выключить звук" aria-pressed="false">🔊</button>
 
   <!-- Канвас идёт ПОСЛЕ кнопки старта. -->
   <canvas id="game" width="320" height="640"></canvas>

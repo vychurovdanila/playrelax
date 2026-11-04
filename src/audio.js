@@ -25,6 +25,9 @@ class AudioManager {
     this.volume = 0.5;       // громкость
     this.playing = false;    // играет ли сейчас
     this.inited = false;     // инициализированы ли Howl-объекты
+    // Отдельный флаг «звук выключен» (кнопка #btn-unmute). Не путать с pause():
+    // при mute трек продолжает играть без звука, playing остаётся true.
+    this.muted = false;
   }
 
   // Читаем сохранённые настройки из localStorage.
@@ -75,6 +78,8 @@ class AudioManager {
       // html5: true — стриминг (важно для iOS, длинных файлов и экономии памяти)
       html5: true,
       volume: this.volume,
+      // muted — сохранённое состояние звука (см. mute/unmute)
+      muted: this.muted,
       // по окончании трека автоматически запускаем следующий
       onend: () => {
         this.next();
@@ -102,6 +107,28 @@ class AudioManager {
     const sound = this.sounds[this.currentIndex];
     if (sound) sound.pause();
     this.playing = false;
+    this.updateUI();
+  }
+
+  // Выключение/включение звука (кнопка #btn-unmute).
+  // Трек не останавливается — только громкость 0. Для html5-режима Howler
+  // поле muted у Howl ставит и громкость, и сам media-элемент.
+  mute() {
+    if (!this.inited) this.init();
+    const sound = this.sounds[this.currentIndex];
+    if (sound) sound.mute(true);
+    this.muted = true;
+    this.updateUI();
+  }
+
+  unmute() {
+    if (!this.inited) this.init();
+    const sound = this.sounds[this.currentIndex];
+    if (sound) {
+      sound.mute(false);
+      sound.volume(this.volume);
+    }
+    this.muted = false;
     this.updateUI();
   }
 
@@ -146,21 +173,16 @@ class AudioManager {
     this.updateUI();
   }
 
-  // Обновляем вид кнопок (если DOM доступен).
+  // Обновляем вид кнопки звука (если DOM доступен).
+  // Кнопок переключения трека и shuffle больше нет — обновляем только #btn-unmute.
   updateUI() {
-    const btnPlay = document.getElementById('music-play');
-    const btnShuffle = document.getElementById('music-shuffle');
+    const btnUnmute = document.getElementById('btn-unmute');
+    if (!btnUnmute) return;
 
-    if (btnPlay) {
-      btnPlay.textContent = this.playing ? '⏸' : '▶';
-      btnPlay.setAttribute('aria-label', this.playing ? 'Пауза' : 'Играть');
-    }
-    if (btnShuffle) {
-      btnShuffle.textContent = '🔀';
-      btnShuffle.setAttribute('data-active', this.isShuffle ? 'true' : 'false');
-      btnShuffle.setAttribute('aria-label',
-        this.isShuffle ? 'Режим: Случайно' : 'Режим: По порядку');
-    }
+    btnUnmute.textContent = this.muted ? '🔇' : '🔊';
+    btnUnmute.setAttribute('aria-pressed', this.muted ? 'true' : 'false');
+    btnUnmute.setAttribute('aria-label',
+      this.muted ? 'Включить звук' : 'Выключить звук');
   }
 }
 

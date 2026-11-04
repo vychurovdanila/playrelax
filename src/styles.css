@@ -2,9 +2,12 @@
 html, body {
   height: 100%;
   margin: 0;
-  /* Фон прозрачный — иначе чёрный body перекрывал бы видеофон.
-     Под iframe всё равно чёрный фон (сам плеер), белых полосок не будет. */
-  background: transparent;
+  padding: 0;
+  /* Чёрный фон: если видео рядом с краем экрана не дотянулось/не успело
+     растянуться, вместо белой полоски снизу будет незаметный чёрный край.
+     overflow: hidden — никакого скролла/прокрутки (источник белых полос). */
+  background: #000;
+  overflow: hidden;
 }
 
 body {
@@ -32,11 +35,15 @@ canvas {
   z-index: 10;
   /* touch-action: none — дублируем на канвасе */
   touch-action: none;
-  /* Адаптив с сохранением пропорций 1:2 (320×640) */
+  /* Адаптив с сохранением пропорций 1:2 (320×640).
+     80dvh вместо 100vh — поле уменьшено на 10%, чтобы точно влезало
+     на мобильных экранах (адресная строка Safari/Chrome «съедает» высоту).
+     aspect-ratio задаёт ширину автоматически. */
+  aspect-ratio: 1 / 2;
   max-width: 100vw;
-  max-height: 100vh;
+  max-height: 80dvh;
   width: auto;
-  height: auto;
+  height: 80dvh;
 }
 
 /* ---------- Видеофон (Kinescope iframe) ---------- */
@@ -98,44 +105,45 @@ canvas {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* ---------- Панель управления музыкой ---------- */
-#music-controls {
+/* ---------- Кнопка звука (единственная кнопка управления музыкой) ---------- */
+#btn-unmute {
   position: fixed;
-  top: 10px;
-  right: 10px;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  /* 44×44 — минимальный комфортный размер тапа на мобильных */
+  width: 44px;
+  height: 44px;
   display: flex;
-  gap: 8px;
-  z-index: 10;
-}
-
-#music-controls button {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  font-size: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 24px;
   line-height: 1;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  padding: 0;
+  /* touch-action: manipulation — тап по кнопке не зумит экран и не ждёт 300 мс */
+  touch-action: manipulation;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-#music-controls button:hover {
+#btn-unmute:hover {
   background: rgba(255, 255, 255, 0.22);
   border-color: rgba(255, 255, 255, 0.45);
 }
 
-#music-controls button:active {
+#btn-unmute:active {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Активный режим shuffle — подсветка */
-#music-controls button[data-active="true"] {
-  background: rgba(255, 255, 255, 0.3);
+/* Звук выключен — кнопка визуально приглушена */
+#btn-unmute[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.28);
   border-color: rgba(255, 255, 255, 0.6);
 }
 
