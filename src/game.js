@@ -281,19 +281,11 @@ function loop() {
   rAF = requestAnimationFrame(loop);
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  // ПАУЗА (два пальца на экране): логика падения не выполняется, экран
-  // просто затемняется надписью. requestAnimationFrame продолжает крутиться,
-  // поэтому снятие паузы мгновенно возвращает игру в работу.
-  if (isPaused) {
-    context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = 'white';
-    context.font = '30px monospace';
-    context.textAlign = 'center';
-    context.fillText('ПАУЗА', canvas.width / 2, canvas.height / 2);
-    context.textAlign = 'start'; // возвращаем выравнивание для следующего кадра
-    return; // пропускаем падение и отрисовку фигуры
-  }
+  // ПАУЗА: логика падения не выполняется, фигура замирает. Сам эффект
+  // (размытие канваса + фокус на видео) делается CSS-классом body.is-paused,
+  // никакого оверлея на канвасе не рисуем. requestAnimationFrame продолжает
+  // крутиться, поэтому снятие паузы мгновенно возвращает игру в работу.
+  if (isPaused) return;
 
   // Рисуем игровое поле (только видимый диапазон камеры).
   for (let r = 0; r < ROWS; r++) {
@@ -661,9 +653,11 @@ document.addEventListener('touchend', (e) => {
       } else {
         // Был короткий тап двумя пальцами — переключаем паузу.
         // Счётчик кадров сбрасываем, чтобы фигура не «дёрнулась» вниз
-        // сразу после снятия паузы.
+        // сразу после снятия паузы. Класс на body включает CSS-эффект:
+        // канвас размывается и уходит в прозрачность, видео становится чётким.
         isPaused = !isPaused;
         count = 0;
+        document.body.classList.toggle('is-paused', isPaused);
       }
       twoFingerStartX = null;
       twoFingerStartY = null;

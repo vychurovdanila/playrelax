@@ -41,7 +41,11 @@ canvas {
   border: 1px solid rgba(255, 255, 255, 0.3);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 1s ease;
+  /* Канвас в игре — прозрачный на 70% и чёткий; фон под ним размыт.
+     Плавный переход работает в обе стороны: при паузе (body.is-paused)
+     канвас размывается и становится прозрачнее, а видео — чётким. */
+  filter: blur(0px);
+  transition: opacity 1s ease, filter 0.5s ease;
   /* tetris поверх видеофона (.bg-video имеет z-index: 0) */
   position: relative;
   z-index: 10;
@@ -90,8 +94,11 @@ canvas {
   border: none;
   /* По умолчанию скрыты */
   opacity: 0;
+  /* Видео размыто во время игры — фокус на поле. Чётким становится
+     только в паузе (body.is-paused). */
+  filter: blur(5px);
   /* Плавный переход (1 секунда) */
-  transition: opacity 1s ease-in-out;
+  transition: opacity 1s ease-in-out, filter 0.5s ease;
   z-index: -1;
   /* pointer-events: none — фон не перехватывает свайпы по канвасу */
   pointer-events: none;
@@ -101,6 +108,21 @@ canvas {
   /* Активный iframe виден */
   opacity: 1;
   z-index: 0;
+}
+
+/* ---------- Пауза: кинематографичный эффект смены фокуса ----------
+   Класс вешает/снимает обработчик жестов в src/game.js.
+   Канвас уходит на второй план (размыт + прозрачнее), видео — в фокус. */
+body.is-paused canvas {
+  /* Прозрачность 20% — поле «уходит» на второй план */
+  opacity: 0.20;
+  /* Канвас размывается */
+  filter: blur(5px);
+}
+
+body.is-paused .bg-iframe {
+  /* Видео становится четким */
+  filter: blur(0px);
 }
 
 /* ---------- Экран старта ---------- */
