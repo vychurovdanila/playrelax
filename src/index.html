@@ -12,7 +12,10 @@
   <!-- Видеофон Kinescope. Рендерится на самом дне (z-index: 0), но выше body,
        поэтому при загрузке виден сразу. Кнопка старта — поверх него. -->
   <div class="bg-video">
-    <iframe id="bg-iframe" src="https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+    <!-- autoplay=1&mute=1 — плеер Kinescope запускает видео сам, без звука
+         (звук музыки идёт отдельно через Howler), поэтому экран с кнопкой
+         Play не показывается. -->
+    <iframe id="bg-iframe" src="https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
   </div>
 
   <!-- ЭКРАН СТАРТА: виден при загрузке, скрывается по клику.

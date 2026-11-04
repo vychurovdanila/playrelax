@@ -185,17 +185,32 @@ function placeTetromino() {
     }
   }
 
-  // Проверяем и убираем собранные линии (снизу вверх).
+  // Пакетное удаление собранных линий.
+  // Собираем только НЕ-заполненные строки (rowsToKeep), затем сверху
+  // добавляем столько же пустых — это корректно работает и когда
+  // подряд собрано несколько линий сразу (старый per-row сдвиг «съезжал»).
+  const rowsToKeep = [];
   let linesCleared = 0;
-  for (let row = ROWS - 1; row >= 0; row--) {
-    if (playfield[row].every(cell => !!cell)) {
-      linesCleared++;
 
-      // Опускаем каждую строку выше этой на одну вниз.
-      for (let r = row; r > 0; r--) {
-        playfield[r] = [...playfield[r - 1]];
-      }
-      playfield[0] = new Array(COLS).fill(0);
+  for (let row = 0; row < ROWS; row++) {
+    if (playfield[row].every(cell => !!cell)) {
+      // строка заполнена целиком — её убираем
+      linesCleared++;
+    } else {
+      rowsToKeep.push(playfield[row]);
+    }
+  }
+
+  // Если что-то съели — перестраиваем массив: сохранённые строки снизу,
+  // пустые сверху (unshift), длина стакана (ROWS) сохраняется.
+  if (linesCleared > 0) {
+    for (let i = 0; i < linesCleared; i++) {
+      rowsToKeep.unshift(new Array(COLS).fill(0));
+    }
+
+    // Копируем результат обратно в playfield (массив по const — мутируем по индексу).
+    for (let row = 0; row < ROWS; row++) {
+      playfield[row] = rowsToKeep[row];
     }
   }
 
@@ -427,27 +442,10 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 
 /* ============================================================
-   Аудио: запуск музыки только после первого действия пользователя
-   (требование автоплея iOS Safari).
+   Аудио запускается по клику на кнопку «Начать» (см. блок стартового экрана
+   в конце файла). Слушатели touchstart/click/keydown убраны: они запускали
+   музыку до старта игры — при любом тапе по экрану.
    ============================================================ */
-let audioStarted = false;
-
-function startAudioOnFirstInteraction() {
-  if (audioStarted) return;
-  audioStarted = true;
-
-  window.audioManager.init();
-  window.audioManager.play();
-
-  // Убираем слушатели после первого действия.
-  document.removeEventListener('touchstart', startAudioOnFirstInteraction);
-  document.removeEventListener('click', startAudioOnFirstInteraction);
-  document.removeEventListener('keydown', startAudioOnFirstInteraction);
-}
-
-document.addEventListener('touchstart', startAudioOnFirstInteraction);
-document.addEventListener('click', startAudioOnFirstInteraction);
-document.addEventListener('keydown', startAudioOnFirstInteraction);
 
 // Кнопки управления музыкой.
 const btnMusicPlay = document.getElementById('music-play');
@@ -483,5 +481,30 @@ tetromino = getNextTetromino();
 resizeCanvas();
 rAF = requestAnimationFrame(loop);
 
+// --- ЛОГИКА СТАРТОВОГО ЭКРАНА ---
+document.addEventListener('DOMContentLoaded', () => {
+  const startScreen = document.getElementById('start-screen');
+  const startBtn = document.getElementById('start-btn');
+  const gameCanvas = document.getElementById('game');
 
+  if (startBtn && startScreen && gameCanvas) {
+    startBtn.addEventListener('click', () => {
+      // 1. Скрываем кнопку
+      startScreen.style.opacity = '0';
+      setTimeout(() => {
+        startScreen.style.display = 'none';
+      }, 500);
+      
+      // 2. Показываем тетрис
+      gameCanvas.style.opacity = '0.70';
+      gameCanvas.style.pointerEvents = 'auto';
+      
+      // 3. Запускаем звук
+      if (window.audioManager) {
+        window.audioManager.init();
+        window.audioManager.play();
+      }
+    });
+  }
+});
 
