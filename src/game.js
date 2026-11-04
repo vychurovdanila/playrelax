@@ -373,6 +373,56 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 
 /* ============================================================
+   Аудио: запуск музыки только после первого действия пользователя
+   (требование автоплея iOS Safari).
+   ============================================================ */
+let audioStarted = false;
+
+function startAudioOnFirstInteraction() {
+  if (audioStarted) return;
+  audioStarted = true;
+
+  window.audioManager.init();
+  window.audioManager.play();
+
+  // Убираем слушатели после первого действия.
+  document.removeEventListener('touchstart', startAudioOnFirstInteraction);
+  document.removeEventListener('click', startAudioOnFirstInteraction);
+  document.removeEventListener('keydown', startAudioOnFirstInteraction);
+}
+
+document.addEventListener('touchstart', startAudioOnFirstInteraction);
+document.addEventListener('click', startAudioOnFirstInteraction);
+document.addEventListener('keydown', startAudioOnFirstInteraction);
+
+// Кнопки управления музыкой.
+const btnMusicPlay = document.getElementById('music-play');
+const btnMusicNext = document.getElementById('music-next');
+const btnMusicShuffle = document.getElementById('music-shuffle');
+
+if (btnMusicPlay) {
+  btnMusicPlay.addEventListener('click', function() {
+    if (window.audioManager.playing) {
+      window.audioManager.pause();
+    } else {
+      window.audioManager.play();
+    }
+  });
+}
+
+if (btnMusicNext) {
+  btnMusicNext.addEventListener('click', function() {
+    window.audioManager.next();
+  });
+}
+
+if (btnMusicShuffle) {
+  btnMusicShuffle.addEventListener('click', function() {
+    window.audioManager.toggleShuffle();
+  });
+}
+
+/* ============================================================
    Старт игры.
    ============================================================ */
 tetromino = getNextTetromino();

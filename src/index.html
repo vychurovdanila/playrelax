@@ -20,8 +20,17 @@
     <span></span>
   </a>
 
+  <!-- Панель управления музыкой -->
+  <div id="music-controls">
+    <button id="music-play" type="button" aria-label="Играть">▶</button>
+    <button id="music-next" type="button" aria-label="Следующий трек">⏭</button>
+    <button id="music-shuffle" type="button" aria-label="Режим: По порядку" data-active="false">🔀</button>
+  </div>
+
   <canvas id="game" width="320" height="640"></canvas>
 
+  <script src="vendor/howler.min.js"></script>
+  <script src="audio.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

@@ -49,6 +49,47 @@ canvas {
   text-decoration: none;
 }
 
+/* ---------- Панель управления музыкой ---------- */
+#music-controls {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+#music-controls button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+#music-controls button:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+#music-controls button:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Активный режим shuffle — подсветка */
+#music-controls button[data-active="true"] {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
 /* ---------- Адаптив: на узких экранах канвас занимает экран ---------- */
 @media (max-width: 600px) {
   canvas {
