@@ -1,0 +1,19 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Node (на будущее)
+node_modules/
+npm-debug.log*
+
+# Build
+dist/
+build/
+
+# Local env
+.env
+.env.local
