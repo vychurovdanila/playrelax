@@ -151,13 +151,12 @@ function isValidMove(matrix, cellRow, cellCol) {
   for (let row = 0; row < matrix.length; row++) {
     for (let col = 0; col < matrix[row].length; col++) {
       if (matrix[row][col] && (
-          // выход за границы игрового поля (сверху можно — спавн за экраном)
+          // Выход за левую/правую границу
           cellCol + col < 0 ||
-          cellCol + col >= COLS ||
-          // Нижняя граница — «виртуальный пол» видимой области:
-          // фигура не проваливается ниже нижнего края экрана камеры.
+          cellCol + col >= playfield[0].length ||
+          // ЖЁСТКИЙ ПОЛ: фигура не может упасть ниже видимой зоны
           cellRow + row >= cameraY + VISIBLE_ROWS ||
-          // столкновение с другой фигурой
+          // Столкновение с другими блоками
           playfield[cellRow + row][cellCol + col])
         ) {
         return false;
@@ -214,57 +213,61 @@ function placeTetromino() {
     }
   }
 
-  // 1. Находим верхний и нижний блоки в массиве
-  let highestBlock = ROWS;
-  let lowestBlock = 0;
-  for (let r = 0; r < ROWS; r++) {
-    if (playfield[r].some(cell => cell !== 0)) {
-      if (highestBlock === ROWS) highestBlock = r;
-      lowestBlock = r;
-    }
-  }
-
-  if (highestBlock !== ROWS) {
-    // 2. Отступ сверху (9 пустых рядов)
-    if (highestBlock < cameraY + 9) {
-      cameraY = highestBlock - 9;
+    // 1. Находим верхний и нижний блоки
+    let highestBlock = ROWS;
+    let lowestBlock = 0;
+    for (let r = 0; r < ROWS; r++) {
+      if (playfield[r].some(cell => cell !== 0)) {
+        if (highestBlock === ROWS) highestBlock = r;
+        lowestBlock = r;
+      }
     }
 
-    // 3. Выплывание снизу (ТОЛЬКО если съели линии и в подвале есть блоки)
-    if (linesCleared > 0 && lowestBlock > cameraY + 17) {
-      // Проверяем, есть ли блоки в скрытом ряду под нами
-      let hasHiddenBlocks = false;
-      for (let r = cameraY + 18; r < ROWS; r++) {
-        if (playfield[r].some(cell => cell !== 0)) {
-          hasHiddenBlocks = true;
-          break;
+    if (highestBlock !== ROWS) {
+      // 2. Отступ сверху (9 пустых рядов)
+      if (highestBlock < cameraY + 9) {
+        cameraY = highestBlock - 9;
+      }
+
+      // 3. Выплывание снизу (ТОЛЬКО если есть скрытые блоки внизу)
+      if (linesCleared > 0) {
+        let hasHiddenBlocks = false;
+        // Строго проверяем зону НИЖЕ видимого экрана
+        for (let r = cameraY + VISIBLE_ROWS; r < ROWS; r++) {
+          if (playfield[r].some(cell => cell !== 0)) {
+            hasHiddenBlocks = true;
+            break;
+          }
+        }
+
+        // Если внизу есть блоки и башня просела до предела - опускаем камеру на 1
+        if (hasHiddenBlocks && lowestBlock >= cameraY + VISIBLE_ROWS - 2) {
+          cameraY += 1;
         }
       }
-      if (hasHiddenBlocks) {
-        cameraY += 1;
+    }
+
+    // 4. Бесконечность СВЕРХУ
+    if (cameraY < 0) {
+      const SHIFT = 20;
+      for (let i = 0; i < SHIFT; i++) {
+        playfield.unshift(new Array(COLS).fill(0));
+        playfield.pop();
       }
+      cameraY += SHIFT;
+      if (tetromino) tetromino.row += SHIFT;
     }
-  }
 
-  // 4. Бесконечность СВЕРХУ (сдвигаем массив ТОЛЬКО когда уперлись в 0)
-  if (cameraY < 0) {
-    const SHIFT = 20;
-    for (let i = 0; i < SHIFT; i++) {
-      playfield.unshift(new Array(COLS).fill(0));
-      playfield.pop();
+    // 5. Бесконечность СНИЗУ
+    if (cameraY > 180) {
+      const SHIFT = 20;
+      for (let i = 0; i < SHIFT; i++) {
+        playfield.push(new Array(COLS).fill(0));
+        playfield.shift();
+      }
+      cameraY -= SHIFT;
+      if (tetromino) tetromino.row -= SHIFT;
     }
-    cameraY += SHIFT;
-  }
-
-  // 5. Бесконечность СНИЗУ
-  if (cameraY > 180) {
-    const SHIFT = 20;
-    for (let i = 0; i < SHIFT; i++) {
-      playfield.push(new Array(COLS).fill(0));
-      playfield.shift();
-    }
-    cameraY -= SHIFT;
-  }
 
   tetromino = getNextTetromino();
 }
