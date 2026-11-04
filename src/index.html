@@ -11,13 +11,16 @@
 </head>
 <body>
 
-  <!-- Видеофон Kinescope. Рендерится на самом дне (z-index: 0), но выше body,
-       поэтому при загрузке виден сразу. Кнопка старта — поверх него. -->
+  <!-- Видеофон Kinescope: ДВА iframe друг поверх друга для плавного кроссфейда
+       при смене мира (.bg-iframe.active виден, второй скрыт и заранее
+       подгружается — см. switchWorld в src/game.js). -->
   <div class="bg-video">
     <!-- autoplay=1&mute=1 — плеер Kinescope запускает видео сам, без звука
          (звук музыки идёт отдельно через Howler), поэтому экран с кнопкой
          Play не показывается. -->
-    <iframe id="bg-iframe" src="https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+    <iframe id="bg-iframe-1" class="bg-iframe active" src="https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+    <!-- Второй iframe пуст: в него switchWorld подставит следующее видео. -->
+    <iframe id="bg-iframe-2" class="bg-iframe" src="" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
   </div>
 
   <!-- ЭКРАН СТАРТА: виден при загрузке, скрывается по клику.
