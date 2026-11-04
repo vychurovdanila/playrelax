@@ -421,25 +421,35 @@ canvas.addEventListener('touchend', function(e) {
 }, { passive: false });
 
 /* ============================================================
-   Адаптивный канвас: логический размер 320×640 не меняется,
-   меняется только CSS-отображение с сохранением пропорций 1:2.
-   TODO: devicePixelRatio для Retina — сессия 3/4.
+   Адаптивный канвас ОТКЛЮЧЁН.
+   Раньше функция задавала canvas inline-стили width/height в px
+   (100vh по высоте), и они конфликтовали с CSS (height: 80dvh +
+   aspect-ratio: 1/2): inline-высота выигрывала, а ширину браузер
+   тянул до 100vw — канвас сплющивался.
+   Теперь размером управляет ТОЛЬКО CSS (src/styles.css, блок canvas).
+   Функция оставлена пустышкой, чтобы не менять места вызовов
+   (window resize и старт игры).
+   Логический размер 320×640 (canvas.width/height) не затрагивается —
+   логика падения, камеры и линий работает как раньше.
    ============================================================ */
 function resizeCanvas() {
-  const ratio = canvas.width / canvas.height; // 1:2
-  const maxW = window.innerWidth;
-  const maxH = window.innerHeight;
-
-  let w = maxW;
-  let h = w / ratio;
-
-  if (h > maxH) {
-    h = maxH;
-    w = h * ratio;
-  }
-
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
+  // Тело закомментировано намеренно: inline-размеры канваса больше не ставим.
+  // return;
+  //
+  // const ratio = canvas.width / canvas.height; // 1:2
+  // const maxW = window.innerWidth;
+  // const maxH = window.innerHeight;
+  //
+  // let w = maxW;
+  // let h = w / ratio;
+  //
+  // if (h > maxH) {
+  //   h = maxH;
+  //   w = h * ratio;
+  // }
+  //
+  // canvas.style.width = w + 'px';
+  // canvas.style.height = h + 'px';
 }
 
 window.addEventListener('resize', resizeCanvas);
