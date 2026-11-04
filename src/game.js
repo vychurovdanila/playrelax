@@ -197,35 +197,42 @@ function placeTetromino() {
     }
   }
 
-  // --- Камера: следим за верхом башни ---
-  // Ищем самый верхний (минимальный row) заполненный ряд.
+  // 1. Находим верхний и нижний блоки в массиве
   let highestBlock = ROWS;
+  let lowestBlock = 0;
   for (let r = 0; r < ROWS; r++) {
     if (playfield[r].some(cell => cell !== 0)) {
-      highestBlock = r;
-      break;
+      if (highestBlock === ROWS) highestBlock = r;
+      lowestBlock = r;
     }
   }
 
-  // Если башня поднялась к верхнему краю — камера едет вниз (cameraY уменьшается),
-  // сверху держим комфортный запас в 3 свободных ряда.
-  if (highestBlock < cameraY + 3) {
-    cameraY = highestBlock - 3;
+  if (highestBlock !== ROWS) {
+    // 2. Отступ сверху (9 пустых рядов)
+    if (highestBlock < cameraY + 9) {
+      cameraY = highestBlock - 9;
+    }
+
+    // 3. Плавный выезд снизу (когда остается 2 ряда)
+    if (lowestBlock > cameraY + 17) {
+      cameraY += 1;
+    }
   }
-  // Если башня просела (съели линии) — камера плавно опускается вниз
-  // ровно на 1 ряд за раз, когда внизу остаётся 2 свободных ряда.
-  if (highestBlock > cameraY + 18) {
-    cameraY += 1;
-  }
-  // Ограничитель сверху: не улетаем выше нулевого ряда.
+
+  // 4. Ограничение сверху
   if (cameraY < 0) cameraY = 0;
 
-  // Бесконечность: дошли до дна массива — удаляем самый верхний ряд (0),
-  // добавляем пустой ряд в конец (ROWS - 1) и держим камеру на пределе 180.
+  // 5. ИСПРАВЛЕНИЕ БАГА: Бесконечный сдвиг массива
   if (cameraY > 180) {
-    cameraY = 180;
-    playfield.shift(); // удаляем ряд 0
-    playfield.push(new Array(COLS).fill(0)); // добавляем пустой ряд в конец (199)
+    const SHIFT_ROWS = 20;
+    // Удаляем 20 рядов сверху
+    playfield.splice(0, SHIFT_ROWS);
+    // Добавляем 20 пустых рядов снизу
+    for (let i = 0; i < SHIFT_ROWS; i++) {
+      playfield.push(new Array(COLS).fill(0));
+    }
+    // Сдвигаем камеру обратно, чтобы визуально ничего не прыгало
+    cameraY -= SHIFT_ROWS;
   }
 
   tetromino = getNextTetromino();
