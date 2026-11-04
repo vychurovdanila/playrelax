@@ -86,8 +86,8 @@ let count = 0;
 let tetromino = null;
 let rAF = null;  // отслеживаем кадр анимации, чтобы при необходимости отменить
 
-// Пауза: держим два пальца на экране — падение останавливается.
-// Управляется обработчиками двухпальцевого жеста (touchstart/touchend ниже).
+// Пауза: переключается коротким тапом двумя пальцами (тапнул — пауза,
+// тапнул ещё раз — игра). Свайп двумя пальцами (смена мира) паузу не трогает.
 let isPaused = false;
 
 /* ============================================================
@@ -613,83 +613,61 @@ function switchWorld() {
   activeIframe = nextIframeNum;
 }
 
-// --- Свайп ДВУМЯ пальцами = смена мира ---
-// Ловим жест на document в фазе ПЕРЕХВАТА (capture). Как только на экране
-// оказываются два пальца, помечаем событие как «двухпальцевое» и гасим его
-// (stopImmediatePropagation), чтобы обработчик канваса его не получил и
-// не повернул/не сдвинул фигуру.
+// --- ЖЕСТЫ ---
+// Ловим жест на document в фазе ПЕРЕХВАТА (capture): как только на экране
+// оказываются два пальца, гасим событие (stopImmediatePropagation), чтобы
+// обработчик канваса его не получил и не повернул/не сдвинул фигуру.
+// Логика: короткий тап двумя пальцами = переключатель паузы,
+// свайп двумя пальцами = смена мира (паузу не трогает).
 const TWO_FINGER_SWIPE_THRESHOLD = 30;
 
-let twoFingerStartX = 0;
-let twoFingerStartY = 0;
-// Жест начался именно двумя пальцами (иначе одиночный тап/свайп тоже считался бы).
-let twoFingerActive = false;
-// Событие свайпа уже отработано — защита от двойного touchend по двум пальцам.
-let twoFingerHandled = false;
+let touchStartX = null;
+let touchStartY = null;
+let twoFingerMoved = false; // Флаг: был ли это свайп, а не тап
 
-function twoFingerCenter(t1, t2) {
-  return {
-    x: (t1.clientX + t2.clientX) / 2,
-    y: (t1.clientY + t2.clientY) / 2
-  };
-}
-
-document.addEventListener('touchstart', function(e) {
-  if (e.touches.length < 2) return;
-
-  twoFingerActive = true;
-  twoFingerHandled = false;
-  const c = twoFingerCenter(e.touches[0], e.touches[1]);
-  twoFingerStartX = c.x;
-  twoFingerStartY = c.y;
-
-  // Два пальца на экране — ставим игру на паузу (фигура перестаёт падать,
-  // музыка продолжает играть — звук живёт отдельно от цикла).
-  isPaused = true;
-  // Счётчик кадров падения обнуляем в момент паузы: пока пальцы на экране
-  // он не растёт, поэтому фигура не «дёрнется» вниз при возобновлении.
-  count = 0;
-
-  // Двухпальцевый жест — не для игры: гасим его ДО канваса.
-  e.stopImmediatePropagation();
-}, { passive: true, capture: true });
-
-document.addEventListener('touchmove', function(e) {
-  if (!twoFingerActive) return;
-  e.stopImmediatePropagation();
-}, { passive: true, capture: true });
-
-document.addEventListener('touchend', function(e) {
-  if (!twoFingerActive) return;
-
-  // touchend приходит по каждому пальцу отдельно: пока на экране остался
-  // хотя бы один палец — ждём, иначе мир переключится дважды.
-  if (e.touches.length > 0) {
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    twoFingerMoved = false;
+    // Двухпальцевый жест — не для игры: гасим его ДО канваса.
     e.stopImmediatePropagation();
-    return;
+  } else {
+    touchStartX = null;
   }
+}, { passive: true, capture: true });
 
-  twoFingerActive = false;
+document.addEventListener('touchmove', (e) => {
+  // Если двигаем двумя пальцами, проверяем, не свайп ли это
+  if (touchStartX !== null && e.touches.length === 2) {
+    const distX = Math.abs(e.touches[0].clientX - touchStartX);
+    const distY = Math.abs(e.touches[0].clientY - touchStartY);
+    if (distX > TWO_FINGER_SWIPE_THRESHOLD || distY > TWO_FINGER_SWIPE_THRESHOLD) {
+      twoFingerMoved = true;
+    }
+    e.stopImmediatePropagation();
+  }
+}, { passive: true, capture: true });
 
-  // Пальцев больше нет — снимаем паузу. Игра продолжается с того же места.
-  isPaused = false;
-
-  // Жест гасим всегда (это был двухпальцевый свайп, а не игра).
-  e.stopImmediatePropagation();
-
-  if (twoFingerHandled) return;
-  twoFingerHandled = true;
-
-  // Смещение — по центру пальцев.
-  const t1 = e.changedTouches[0];
-  const t2 = e.changedTouches[1] || e.changedTouches[0];
-  const c = twoFingerCenter(t1, t2);
-  const dx = Math.abs(c.x - twoFingerStartX);
-  const dy = Math.abs(c.y - twoFingerStartY);
-
-  if (dx > TWO_FINGER_SWIPE_THRESHOLD || dy > TWO_FINGER_SWIPE_THRESHOLD) {
-    // Короткий свайп двумя пальцами — смена мира, как и раньше.
-    switchWorld();
+document.addEventListener('touchend', (e) => {
+  if (touchStartX !== null && e.changedTouches.length > 0) {
+    // Пока на экране остался хотя бы один палец — ждём, иначе обработаем дважды.
+    if (e.touches.length === 0) {
+      if (twoFingerMoved) {
+        // Был свайп — меняем видео, паузу не трогаем
+        switchWorld();
+      } else {
+        // Был короткий тап двумя пальцами — переключаем паузу.
+        // Счётчик кадров сбрасываем, чтобы фигура не «дёрнулась» вниз
+        // сразу после снятия паузы.
+        isPaused = !isPaused;
+        count = 0;
+      }
+      touchStartX = null;
+      touchStartY = null;
+    }
+    // Гасим жест, чтобы канвас не воспринял его как тап/свайп игры.
+    e.stopImmediatePropagation();
   }
 }, { passive: true, capture: true });
 
