@@ -152,7 +152,9 @@ function isValidMove(matrix, cellRow, cellCol) {
           // выход за границы игрового поля (сверху можно — спавн за экраном)
           cellCol + col < 0 ||
           cellCol + col >= COLS ||
-          cellRow + row >= ROWS ||
+          // Нижняя граница — «виртуальный пол» видимой области:
+          // фигура не проваливается ниже нижнего края экрана камеры.
+          cellRow + row >= cameraY + VISIBLE_ROWS ||
           // столкновение с другой фигурой
           playfield[cellRow + row][cellCol + col])
         ) {
