@@ -186,8 +186,10 @@ function placeTetromino() {
   }
 
   // Проверяем и убираем собранные линии (снизу вверх).
+  let linesCleared = 0;
   for (let row = ROWS - 1; row >= 0; row--) {
     if (playfield[row].every(cell => !!cell)) {
+      linesCleared++;
 
       // Опускаем каждую строку выше этой на одну вниз.
       for (let r = row; r > 0; r--) {
@@ -213,26 +215,30 @@ function placeTetromino() {
       cameraY = highestBlock - 9;
     }
 
-    // 3. Плавный выезд снизу (когда остается 2 ряда)
-    if (lowestBlock > cameraY + 17) {
+    // 3. Плавный выезд снизу (ТОЛЬКО если съели линию и осталось 2 ряда)
+    if (linesCleared > 0 && lowestBlock > cameraY + 17) {
       cameraY += 1;
     }
   }
 
-  // 4. Ограничение сверху
-  if (cameraY < 0) cameraY = 0;
-
-  // 5. ИСПРАВЛЕНИЕ БАГА: Бесконечный сдвиг массива
-  if (cameraY > 180) {
-    const SHIFT_ROWS = 20;
-    // Удаляем 20 рядов сверху
-    playfield.splice(0, SHIFT_ROWS);
-    // Добавляем 20 пустых рядов снизу
-    for (let i = 0; i < SHIFT_ROWS; i++) {
-      playfield.push(new Array(COLS).fill(0));
+  // 4. Бесконечность СВЕРХУ (когда камера уперлась в 0)
+  if (cameraY < 0) {
+    const SHIFT = 20;
+    for (let i = 0; i < SHIFT; i++) {
+      playfield.unshift(new Array(COLS).fill(0)); // Добавляем пустой ряд сверху
+      playfield.pop(); // Удаляем ряд снизу
     }
-    // Сдвигаем камеру обратно, чтобы визуально ничего не прыгало
-    cameraY -= SHIFT_ROWS;
+    cameraY += SHIFT;
+  }
+
+  // 5. Бесконечность СНИЗУ (когда камера уперлась в 180)
+  if (cameraY > 180) {
+    const SHIFT = 20;
+    for (let i = 0; i < SHIFT; i++) {
+      playfield.push(new Array(COLS).fill(0)); // Добавляем ряд снизу
+      playfield.shift(); // Удаляем ряд сверху
+    }
+    cameraY -= SHIFT;
   }
 
   tetromino = getNextTetromino();
