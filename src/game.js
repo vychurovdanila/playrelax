@@ -14,8 +14,13 @@ const grid = 32;
 // Очередь фигур (заполняется generateSequence).
 const tetrominoSequence = [];
 
-// Игровое поле 10×20; первые строки (-2, -1) — за экраном (старт фигур).
+// Игровое поле: большой скрытый стакан 10×40.
+// Видна только часть (VISIBLE_ROWS = 20), остальное показывает камера (cameraY).
 // 2-мерный массив: playfield[row][col].
+const ROWS = 40;
+const COLS = 10;
+const VISIBLE_ROWS = 20;
+let cameraY = 20; // камера показывает ряды с 20 по 39
 const playfield = [];
 
 // Как рисуется каждый тетромино.
@@ -69,13 +74,9 @@ const colors = {
   'L': 'white'
 };
 
-// Заполняем пустое поле (строки -2..19, столбцы 0..9).
-for (let row = -2; row < 20; row++) {
-  playfield[row] = [];
-
-  for (let col = 0; col < 10; col++) {
-    playfield[row][col] = 0;
-  }
+// Заполняем пустое поле (строки 0..39, столбцы 0..9).
+for (let row = 0; row < ROWS; row++) {
+  playfield[row] = new Array(COLS).fill(0);
 }
 
 // Состояние игры.
@@ -118,10 +119,11 @@ function getNextTetromino() {
   const matrix = tetrominos[name];
 
   // I и O стартуют по центру, остальные — в левой середине.
-  const col = playfield[0].length / 2 - Math.ceil(matrix[0].length / 2);
+  const col = COLS / 2 - Math.ceil(matrix[0].length / 2);
 
-  // I стартует на строке 21 (-1), остальные на строке 22 (-2).
-  const row = name === 'I' ? -1 : -2;
+  // Фигура появляется над видимой зоной (за верхним краем экрана)
+  // и плавно выезжает на экран.
+  const row = cameraY - 2;
 
   return {
     name: name,      // имя фигуры (L, O, и т.д.)
@@ -147,10 +149,10 @@ function isValidMove(matrix, cellRow, cellCol) {
   for (let row = 0; row < matrix.length; row++) {
     for (let col = 0; col < matrix[row].length; col++) {
       if (matrix[row][col] && (
-          // выход за границы игрового поля
+          // выход за границы игрового поля (сверху можно — спавн за экраном)
           cellCol + col < 0 ||
-          cellCol + col >= playfield[0].length ||
-          cellRow + row >= playfield.length ||
+          cellCol + col >= COLS ||
+          cellRow + row >= ROWS ||
           // столкновение с другой фигурой
           playfield[cellRow + row][cellCol + col])
         ) {
@@ -168,37 +170,52 @@ function placeTetromino() {
     for (let col = 0; col < tetromino.matrix[row].length; col++) {
       if (tetromino.matrix[row][col]) {
 
-        // Бесконечный режим: если фигура частично за верхней границей,
-        // верхний ряд теряется, поле сдвигается вниз. Проиграть невозможно.
-        if (tetromino.row + row < 0) {
-          for (let r = playfield.length - 1; r > 0; r--) {
-            playfield[r] = [...playfield[r - 1]];
-          }
-          playfield[0] = new Array(10).fill(0);
-          tetromino = getNextTetromino();
-          return;
+        // Бесконечный режим: фиксация переполнения у верхнего края
+        // не теряется — большой стакан хранит ряды, камера едет вниз.
+        // Клетки выше стакана просто отбрасываются (row < 0).
+        const boardRow = tetromino.row + row;
+        if (boardRow >= 0) {
+          playfield[boardRow][tetromino.col + col] = tetromino.name;
         }
-
-        playfield[tetromino.row + row][tetromino.col + col] = tetromino.name;
       }
     }
   }
 
-  // Проверяем сброс линий снизу вверх.
-  for (let row = playfield.length - 1; row >= 0; ) {
+  // Проверяем и убираем собранные линии (снизу вверх).
+  for (let row = ROWS - 1; row >= 0; row--) {
     if (playfield[row].every(cell => !!cell)) {
 
       // Опускаем каждую строку выше этой на одну вниз.
-      for (let r = row; r >= 0; r--) {
-        for (let c = 0; c < playfield[r].length; c++) {
-          playfield[r][c] = playfield[r-1] ? playfield[r-1][c] : 0;
-        }
+      for (let r = row; r > 0; r--) {
+        playfield[r] = [...playfield[r - 1]];
       }
-    }
-    else {
-      row--;
+      playfield[0] = new Array(COLS).fill(0);
     }
   }
+
+  // --- Камера: следим за верхом башни ---
+  // Ищем самый верхний (минимальный row) заполненный ряд.
+  let highestBlock = ROWS;
+  for (let r = 0; r < ROWS; r++) {
+    if (playfield[r].some(cell => cell !== 0)) {
+      highestBlock = r;
+      break;
+    }
+  }
+
+  // Если башня выросла до верха экрана — камера едет вниз (cameraY уменьшается),
+  // между верхним блоком и верхним краем держим запас 6 рядов.
+  if (highestBlock < cameraY + 6) {
+    cameraY = highestBlock - 6;
+  }
+  // Если башня просела (съели линии) — камера едет вверх (cameraY растёт),
+  // но не ниже 20 (нижние ряды памяти не должны уехать за экран).
+  if (highestBlock > cameraY + 12) {
+    cameraY = highestBlock - 12;
+  }
+  // Ограничитель: не выходим за пределы массива playfield.
+  if (cameraY < 0) cameraY = 0;
+  if (cameraY > 20) cameraY = 20;
 
   tetromino = getNextTetromino();
 }
@@ -208,15 +225,18 @@ function loop() {
   rAF = requestAnimationFrame(loop);
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Рисуем игровое поле.
-  for (let row = 0; row < 20; row++) {
-    for (let col = 0; col < 10; col++) {
-      if (playfield[row][col]) {
-        const name = playfield[row][col];
+  // Рисуем игровое поле (только видимый диапазон камеры).
+  for (let r = 0; r < ROWS; r++) {
+    const screenRow = r - cameraY;
+    if (screenRow < 0 || screenRow >= VISIBLE_ROWS) continue;
+
+    for (let col = 0; col < COLS; col++) {
+      if (playfield[r][col]) {
+        const name = playfield[r][col];
         context.fillStyle = colors[name];
 
         // на 1 px меньше grid — создаёт эффект сетки
-        context.fillRect(col * grid, row * grid, grid - 1, grid - 1);
+        context.fillRect(col * grid, screenRow * grid, grid - 1, grid - 1);
       }
     }
   }
@@ -243,7 +263,7 @@ function loop() {
         if (tetromino.matrix[row][col]) {
 
           // на 1 px меньше grid — создаёт эффект сетки
-          context.fillRect((tetromino.col + col) * grid, (tetromino.row + row) * grid, grid - 1, grid - 1);
+          context.fillRect((tetromino.col + col) * grid, (tetromino.row + row - cameraY) * grid, grid - 1, grid - 1);
         }
       }
     }
