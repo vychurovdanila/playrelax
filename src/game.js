@@ -86,6 +86,10 @@ let count = 0;
 let tetromino = null;
 let rAF = null;  // отслеживаем кадр анимации, чтобы при необходимости отменить
 
+// Пауза: держим два пальца на экране — падение останавливается.
+// Управляется обработчиками двухпальцевого жеста (touchstart/touchend ниже).
+let isPaused = false;
+
 /* ============================================================
    Функции игры.
    ============================================================ */
@@ -276,6 +280,20 @@ function placeTetromino() {
 function loop() {
   rAF = requestAnimationFrame(loop);
   context.clearRect(0, 0, canvas.width, canvas.height);
+
+  // ПАУЗА (два пальца на экране): логика падения не выполняется, экран
+  // просто затемняется надписью. requestAnimationFrame продолжает крутиться,
+  // поэтому снятие паузы мгновенно возвращает игру в работу.
+  if (isPaused) {
+    context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'white';
+    context.font = '30px monospace';
+    context.textAlign = 'center';
+    context.fillText('ПАУЗА', canvas.width / 2, canvas.height / 2);
+    context.textAlign = 'start'; // возвращаем выравнивание для следующего кадра
+    return; // пропускаем падение и отрисовку фигуры
+  }
 
   // Рисуем игровое поле (только видимый диапазон камеры).
   for (let r = 0; r < ROWS; r++) {
@@ -529,9 +547,9 @@ if (btnUnmute) {
 // --- ЛОГИКА КРОССФЕЙДА ---
 const videoUrls = [
   'https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1',
-  'https://kinescope.io/bb6vH3tKexKpvcaSNAVDPC?autoplay=1&mute=1',
-  'https://kinescope.io/doXEtFTSEQgmEqia53SpVw?autoplay=1&mute=1',
-  'https://kinescope.io/ovoxefTvckdj5xKAxF15Lg?autoplay=1&mute=1'
+  'https://kinescope.io/embed/bb6vH3tKexKpvcaSNAVDPC?autoplay=1&mute=1',
+  'https://kinescope.io/embed/doXEtFTSEQgmEqia53SpVw?autoplay=1&mute=1',
+  'https://kinescope.io/embed/ovoxefTvckdj5xKAxF15Lg?autoplay=1&mute=1'
 ];
 let currentVideoIndex = 0;
 let activeIframe = 1; // 1 или 2
@@ -625,6 +643,13 @@ document.addEventListener('touchstart', function(e) {
   twoFingerStartX = c.x;
   twoFingerStartY = c.y;
 
+  // Два пальца на экране — ставим игру на паузу (фигура перестаёт падать,
+  // музыка продолжает играть — звук живёт отдельно от цикла).
+  isPaused = true;
+  // Счётчик кадров падения обнуляем в момент паузы: пока пальцы на экране
+  // он не растёт, поэтому фигура не «дёрнется» вниз при возобновлении.
+  count = 0;
+
   // Двухпальцевый жест — не для игры: гасим его ДО канваса.
   e.stopImmediatePropagation();
 }, { passive: true, capture: true });
@@ -646,6 +671,9 @@ document.addEventListener('touchend', function(e) {
 
   twoFingerActive = false;
 
+  // Пальцев больше нет — снимаем паузу. Игра продолжается с того же места.
+  isPaused = false;
+
   // Жест гасим всегда (это был двухпальцевый свайп, а не игра).
   e.stopImmediatePropagation();
 
@@ -660,6 +688,7 @@ document.addEventListener('touchend', function(e) {
   const dy = Math.abs(c.y - twoFingerStartY);
 
   if (dx > TWO_FINGER_SWIPE_THRESHOLD || dy > TWO_FINGER_SWIPE_THRESHOLD) {
+    // Короткий свайп двумя пальцами — смена мира, как и раньше.
     switchWorld();
   }
 }, { passive: true, capture: true });
