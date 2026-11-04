@@ -9,16 +9,17 @@
 </head>
 <body>
 
-  <!-- Видеофон. Пока заглушка без источника — файлы появятся в сессии 3.
-       TODO: заполнить <source> и реализовать кроссфейд при смене мира (сессия 3). -->
-  <video id="bg-video" class="bg-video" muted playsinline loop autoplay preload="auto">
-    <source src="" type="video/mp4">
-  </video>
+  <!-- Видеофон Kinescope. Рендерится на самом дне (z-index: 0), но выше body,
+       поэтому при загрузке виден сразу. Кнопка старта — поверх него. -->
+  <div class="bg-video">
+    <iframe id="bg-iframe" src="https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+  </div>
 
-  <!-- TODO: speaker toggle в сессии звука (кнопка сохранена из прототипа) -->
-  <a href="#" class="speaker">
-    <span></span>
-  </a>
+  <!-- ЭКРАН СТАРТА: виден при загрузке, скрывается по клику.
+       Тетрис (canvas) до этого невидим и не принимает клики. -->
+  <div id="start-screen">
+    <button id="start-btn" type="button">Начать</button>
+  </div>
 
   <!-- Панель управления музыкой -->
   <div id="music-controls">
@@ -27,6 +28,7 @@
     <button id="music-shuffle" type="button" aria-label="Режим: По порядку" data-active="false">🔀</button>
   </div>
 
+  <!-- Канвас идёт ПОСЛЕ кнопки старта. -->
   <canvas id="game" width="320" height="640"></canvas>
 
   <script src="vendor/howler.min.js"></script>

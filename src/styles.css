@@ -2,10 +2,12 @@
 html, body {
   height: 100%;
   margin: 0;
+  /* Фон прозрачный — иначе чёрный body перекрывал бы видеофон.
+     Под iframe всё равно чёрный фон (сам плеер), белых полосок не будет. */
+  background: transparent;
 }
 
 body {
-  background: black;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17,9 +19,17 @@ body {
   overflow: hidden;
 }
 
+/* Тетрис изначально скрыт и НЕ принимает клики (иначе канвас перехватит тап
+   по кнопке «Начать»). Появляется по клику — см. src/game.js.
+   Остальные стили канваса (border, z-index, размеры) сохранены. */
 canvas {
   border: 1px solid rgba(255, 255, 255, 0.3);
-  opacity: 0.70;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+  /* tetris поверх видеофона (.bg-video имеет z-index: 0) */
+  position: relative;
+  z-index: 10;
   /* touch-action: none — дублируем на канвасе */
   touch-action: none;
   /* Адаптив с сохранением пропорций 1:2 (320×640) */
@@ -29,24 +39,63 @@ canvas {
   height: auto;
 }
 
-/* ---------- Видеофон ---------- */
+/* ---------- Видеофон (Kinescope iframe) ---------- */
 .bg-video {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(1px);
-  z-index: -99;
+  width: 100vw;
+  height: 100dvh;
+  /* z-index: 0 — видеофон на самом дне, но ВЫШЕ body (не под ним).
+     При -99 фон уходил за пределы контекста body и не был виден. */
+  z-index: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
-/* ---------- Спикер (заглушка, задел на сессию звука) ---------- */
-.speaker {
+#bg-iframe {
   position: absolute;
-  z-index: 99;
-  text-decoration: none;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 56.25vw;
+  min-height: 100dvh;
+  min-width: 177.78vh;
+  transform: translate(-50%, -50%);
+  border: none;
+}
+
+/* ---------- Экран старта ---------- */
+#start-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  transition: opacity 0.5s ease;
+}
+
+#start-btn {
+  padding: 15px 40px;
+  font-size: 24px;
+  color: white;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid white;
+  border-radius: 30px;
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  font-family: inherit;
+}
+
+#start-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* ---------- Панель управления музыкой ---------- */
