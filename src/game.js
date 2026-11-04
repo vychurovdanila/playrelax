@@ -215,28 +215,38 @@ function placeTetromino() {
       cameraY = highestBlock - 9;
     }
 
-    // 3. Плавный выезд снизу (ТОЛЬКО если съели линию и осталось 2 ряда)
+    // 3. Выплывание снизу (ТОЛЬКО если съели линии и в подвале есть блоки)
     if (linesCleared > 0 && lowestBlock > cameraY + 17) {
-      cameraY += 1;
+      // Проверяем, есть ли блоки в скрытом ряду под нами
+      let hasHiddenBlocks = false;
+      for (let r = cameraY + 18; r < ROWS; r++) {
+        if (playfield[r].some(cell => cell !== 0)) {
+          hasHiddenBlocks = true;
+          break;
+        }
+      }
+      if (hasHiddenBlocks) {
+        cameraY += 1;
+      }
     }
   }
 
-  // 4. Бесконечность СВЕРХУ (когда камера уперлась в 0)
+  // 4. Бесконечность СВЕРХУ (сдвигаем массив ТОЛЬКО когда уперлись в 0)
   if (cameraY < 0) {
     const SHIFT = 20;
     for (let i = 0; i < SHIFT; i++) {
-      playfield.unshift(new Array(COLS).fill(0)); // Добавляем пустой ряд сверху
-      playfield.pop(); // Удаляем ряд снизу
+      playfield.unshift(new Array(COLS).fill(0));
+      playfield.pop();
     }
     cameraY += SHIFT;
   }
 
-  // 5. Бесконечность СНИЗУ (когда камера уперлась в 180)
+  // 5. Бесконечность СНИЗУ
   if (cameraY > 180) {
     const SHIFT = 20;
     for (let i = 0; i < SHIFT; i++) {
-      playfield.push(new Array(COLS).fill(0)); // Добавляем ряд снизу
-      playfield.shift(); // Удаляем ряд сверху
+      playfield.push(new Array(COLS).fill(0));
+      playfield.shift();
     }
     cameraY -= SHIFT;
   }
