@@ -23,6 +23,9 @@ const ROWS = 200;
 const COLS = 10;
 const VISIBLE_ROWS = 20;
 let cameraY = 20; // камера показывает ряды с 20 по 39
+let globalFallOffset = 0;    // Визуальный сдвиг «подвешенных» блоков при падении
+let globalFallVelocity = 0;  // Скорость падения
+let fallThresholdRow = 0;    // Ниже этой строки (вкл.) блоки не падают после съедания линий
 const playfield = [];
 
 // Как рисуется каждый тетромино.
@@ -201,11 +204,13 @@ function placeTetromino() {
   // подряд собрано несколько линий сразу (старый per-row сдвиг «съезжал»).
   const rowsToKeep = [];
   let linesCleared = 0;
+  let lastClearedRow = -1; // индекс самой нижней съеденной строки (в старом массиве)
 
   for (let row = 0; row < ROWS; row++) {
     if (playfield[row].every(cell => !!cell)) {
       // строка заполнена целиком — её убираем
       linesCleared++;
+      lastClearedRow = row;
     } else {
       rowsToKeep.push(playfield[row]);
     }
@@ -222,6 +227,17 @@ function placeTetromino() {
     for (let row = 0; row < ROWS; row++) {
       playfield[row] = rowsToKeep[row];
     }
+
+    // Массив сдвинулся мгновенно — запускаем визуальное падение ТОЛЬКО тех
+    // блоков, которые оказались выше съеденных линий (над образовавшейся
+    // пустотой). Блоки ниже съеденных уже стоят на своих местах.
+    //
+    // В новых координатах порог — lastClearedRow + 1: строки с индексом >= него
+    // не меняли позицию (лежат ниже съеденных), а с индексом < него «висят»
+    // на linesCleared строк выше нужного и должны упасть.
+    globalFallOffset = linesCleared * grid; // Сдвигаем визуально на высоту съеденных линий
+    globalFallVelocity = 0;                 // Сбрасываем скорость
+    fallThresholdRow = lastClearedRow + 1;  // ниже этой строки (вкл.) блоки не падают
   }
 
     // 1. Находим верхний и нижний блоки
@@ -334,8 +350,11 @@ function loop() {
         const name = playfield[r][col];
         context.fillStyle = colors[name];
 
-        // на 1 px меньше grid — создаёт эффект сетки
-        context.fillRect(col * grid, screenRow * grid, grid - 1, grid - 1);
+        // на 1 px меньше grid — создаёт эффект сетки.
+        // Падают (визуально сдвигаются вниз на globalFallOffset) только блоки
+        // выше съеденных линий: их строки идут до fallThresholdRow.
+        const fallShift = r < fallThresholdRow ? globalFallOffset : 0;
+        context.fillRect(col * grid, screenRow * grid - fallShift, grid - 1, grid - 1);
       }
     }
   }
@@ -380,7 +399,7 @@ function loop() {
 
     // Физика вращения (инерция): визуальный угол плавно гаснет к targetRot (=0).
     // Отдельной переменной velRot управляем скоростью доворота.
-    const rotStiffness = 0.09;
+    const rotStiffness = 0.095;
     const rotDamping = 0.62;
 
     if (tetromino.velRot === undefined) tetromino.velRot = 0; // Инициализация скорости вращения
@@ -394,6 +413,17 @@ function loop() {
     if (Math.abs(tetromino.targetRot - tetromino.visualRot) < 0.001) {
       tetromino.visualRot = tetromino.targetRot;
       tetromino.velRot = 0;
+    }
+
+    // Физика падения стакана после съедания линий (гравитация с ускорением).
+    if (globalFallOffset > 0) {
+      globalFallVelocity += 0.4; // Ускорение свободного падения (гравитация)
+      globalFallOffset -= globalFallVelocity;
+
+      if (globalFallOffset <= 0) {
+        globalFallOffset = 0;
+        globalFallVelocity = 0;
+      }
     }
 
     // «Душа» — прозрачный контур точно на логической позиции (на сетке).

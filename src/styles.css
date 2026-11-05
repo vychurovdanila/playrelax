@@ -38,7 +38,7 @@ canvas {
      поэтому 1px border не выталкивает поле за край экрана (на мобилке
      рамку по бокам обрезало, и её не было видно). */
   box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   opacity: 0;
   pointer-events: none;
   /* Канвас в игре — прозрачный на 70% и чёткий; фон под ним размыт.
