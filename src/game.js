@@ -858,8 +858,34 @@ document.addEventListener('DOMContentLoaded', () => {
       gameCanvas.style.pointerEvents = 'auto';
       
       // 3. Запускаем звук: случайный порядок треков + воспроизведение.
+      // Принудительная разблокировка аудио на мобильных (iOS/Android):
+      // после жеста пользователя контекст может быть в 'suspended' —
+      // без resume() play() молча не запустится.
+      if (window.Howler && Howler.ctx && Howler.ctx.state === 'suspended') {
+        Howler.ctx.resume();
+      }
       startMusic(window.audioManager);
     });
   }
 });
+
+/* ---------- Разблокировка аудио первым жестом пользователя ----------
+   Мобильные браузеры (iOS Safari, Android Chrome) не дают запускать звук
+   до первого касания. Вешаем одноразовые слушатели на touchstart и click:
+   как только случился любой жест — будим AudioContext и стартуем музыку.
+   Обработчик один на оба события, поэтому внутри он снимает второй
+   слушатель — иначе после срабатывания touchstart остался бы висеть click. */
+function unlockAudio() {
+  if (window.Howler && Howler.ctx && Howler.ctx.state === 'suspended') {
+    Howler.ctx.resume();
+  }
+  // play() сам проверяет this.playing — повторный вызов безопасен.
+  if (window.audioManager) {
+    window.audioManager.play();
+  }
+  document.removeEventListener('touchstart', unlockAudio);
+  document.removeEventListener('click', unlockAudio);
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click', unlockAudio, { once: true });
 

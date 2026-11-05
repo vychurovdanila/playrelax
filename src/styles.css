@@ -73,8 +73,8 @@ canvas {
   left: 0;
   width: 100vw;
   height: 100dvh;
-  /* Чёрная, 10% непрозрачности */
-  background-color: rgba(0, 0, 0, 0.1);
+  /* Чёрная, 15% непрозрачности — фон слегка приглушён, поле читаемо */
+  background-color: rgba(0, 0, 0, 0.15);
   z-index: 1;
   pointer-events: none;
 }
@@ -144,6 +144,12 @@ body.is-paused canvas {
 body.is-paused .bg-iframe {
   /* Видео становится четким */
   filter: blur(0px);
+}
+
+/* На паузе затемняющая плашка полностью прозрачна: видео видно во всех
+   деталях, а игра замерла и её читаемость уже не критична. */
+body.is-paused #overlay {
+  background-color: rgba(0, 0, 0, 0);
 }
 
 /* ---------- Экран старта ---------- */
