@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Проверка mute у Kinescope (стенд)</title>
+  <style>
+    /* Стенд намеренно простой: единственная задача — показать,
+       реально ли видео молчит при behavior.muted = true. */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #eee;
+      font-family: monospace, system-ui, sans-serif;
+    }
+    #report {
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .ok { color: #5f5; }
+    .bad { color: #f66; }
+    .warn { color: #fd0; }
+    #player-box {
+      position: relative;
+      width: 100vw;
+      height: 56.25vw;
+      min-height: 40vh;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+  <div id="report">Инициализация…</div>
+
+  <!-- Контейнер, в который Kinescope.IframePlayer.create() вставит плеер. -->
+  <div id="player-box"></div>
+
+  <script>
+    /* ============================================================
+       СТЕНД: проверяем, гарантирует ли официальный Kinescope IFrame API
+       беззвучное воспроизведение.
+
+       Что проверяем:
+       1. Загружается ли скрипт player.kinescope.io/latest/iframe.player.js
+       2. Создаётся ли плеер с behavior.muted = true и autoPlay = true
+       3. Что вернёт isMuted()/getVolume() сразу после Ready
+       4. Что вернут те же методы через 5 и 15 секунд (плеер мог сбросить mute —
+          именно это и приводит к звуку в проекте)
+       5. Спасёт ли принудительный player.mute()
+
+       Результат пишется прямо в #report — консоль не нужна.
+       ============================================================ */
+
+    const report = document.getElementById('report');
+    const lines = [];
+
+    // Универсальная запись в отчёт: текст + класс подсветки.
+    function put(text, cls) {
+      lines.push({ text: text, cls: cls || '' });
+      report.innerHTML = lines
+        .map((l) => (l.cls ? '<span class="' + l.cls + '">' + l.text + '</span>' : l.text))
+        .join('\n');
+    }
+    function ok(text) { put('\u2714 ' + text, 'ok'); }
+    function bad(text) { put('\u2718 ' + text, 'bad'); }
+    function warn(text) { put('\u2022 ' + text, 'warn'); }
+    function info(text) { put(text, ''); }
+
+    // Тот же ID видео, что в src/index.html первого мира, — проверка ближе
+    // всего к реальному использованию проекта.
+    const VIDEO_URL = 'https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T';
+    const API_URL = 'https://player.kinescope.io/latest/iframe.player.js';
+
+    // Ждём готовности API через официальный колбэк KinescopeIframeApiReadyHandlers
+    // — ровно так это делает библиотека @kinescope/player-iframe-api-loader.
+    function waitForIframeApi() {
+      return new Promise((resolve) => {
+        const handlers = window.KinescopeIframeApiReadyHandlers || [];
+        window.KinescopeIframeApiReadyHandlers = handlers;
+        handlers.push(resolve);
+      });
+    }
+
+    // Загружаем официальный скрипт IFrame API.
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = src;
+        el.async = true;
+        el.addEventListener('load', () => resolve());
+        el.addEventListener('error', () => reject(new Error('Скрипт не загрузился: ' + src)));
+        document.head.appendChild(el);
+      });
+    }
+  </script>
+
+  <script>
+    // Проверка состояния звука: isMuted() — источник истины.
+    async function checkMuted(player, label) {
+      try {
+        const muted = await player.isMuted();
+        const volume = await player.getVolume();
+        const paused = await player.isPaused();
+        const line = label + ': isMuted()=' + muted + ', getVolume()=' + volume
+          + ', isPaused()=' + paused;
+
+        if (muted === true) {
+          ok(line + '  \u2192 \u0417\u0412\u0423\u041a\u0410 \u041d\u0415\u0422');
+          return;
+        }
+
+        bad(line + '  \u2192 \u0412\u0418\u0414\u0415\u041e \u0417\u0412\u0423\u0427\u0418\u0422!');
+        warn('Пробуем принудительно вызвать player.mute()\u2026');
+        await player.mute();
+        const after = await player.isMuted();
+        const afterVolume = await player.getVolume();
+        if (after === true) {
+          ok('После player.mute(): isMuted()=' + after + ', getVolume()=' + afterVolume);
+        } else {
+          bad('player.mute() не помог: isMuted()=' + after);
+        }
+      } catch (e) {
+        bad(label + ': ошибка чтения состояния \u2014 ' + (e && e.message ? e.message : e));
+      }
+    }
+
+    // Главный сценарий стенда.
+    async function run() {
+      info('1) Загружаем скрипт IFrame API');
+      info('   ' + API_URL);
+
+      try {
+        await loadScript(API_URL);
+      } catch (e) {
+        bad('Скрипт IFrame API не загрузился: ' + e.message);
+        return;
+      }
+      await waitForIframeApi();
+
+      const factory = window.Kinescope && window.Kinescope.IframePlayer;
+      if (!factory) {
+        bad('window.Kinescope.IframePlayer не появился после загрузки скрипта');
+        return;
+      }
+      ok('window.Kinescope.IframePlayer доступен, версия API: ' + factory.version);
+
+      info('');
+      info('2) Создаём плеер: behavior.muted=true, autoPlay=true, ui.controls=false');
+      let player;
+      try {
+        player = await factory.create('player-box', {
+          url: VIDEO_URL,
+          size: { width: '100%', height: '100%' },
+          behavior: {
+            // Главная проверяемая опция: глушим звук на самом <video> внутри плеера.
+            muted: true,
+            autoPlay: true,
+            loop: true,
+            playsInline: true,
+          },
+          ui: {
+            // Без контролов пользователь не сможет нажать динамик и включить звук.
+            controls: false,
+            mainPlayButton: false,
+          },
+        });
+      } catch (e) {
+        bad('create() упал с ошибкой: ' + (e && e.message ? e.message : e));
+        return;
+      }
+      ok('Плеер создан, playerId=' + player.playerId);
+
+      info('');
+      info('3) Проверяем состояние звука');
+
+      // Событие Ready — плеер готов и уже начал играть.
+      if (typeof player.on === 'function' && player.Events) {
+        player.on(player.Events.Ready, () => {
+          info('   [событие Ready]');
+          checkMuted(player, 'сразу после Ready');
+        });
+        player.on(player.Events.Playing, () => {
+          info('   [событие Playing] \u2014 видео реально играет');
+        });
+      } else {
+        warn('События плеера недоступны, проверяем только по таймеру');
+      }
+
+      // Отложенные проверки: если плеер сбросит mute сам (именно этот сценарий
+      // и даёт звук в проекте), мы это увидим на 5-й и 15-й секунде.
+      setTimeout(() => checkMuted(player, 'через 5 с'), 5000);
+      setTimeout(() => checkMuted(player, 'через 15 с'), 15000);
+
+      info('');
+      info('ЕСЛИ ВЫ СЛЫШИТЕ ЗВУК при isMuted()=true \u2014 плеер игнорирует опцию.');
+      info('ЕСЛИ ЗВУКА НЕТ при isMuted()=true \u2014 API работает, можно переносить в проект.');
+    }
+
+    run().catch((e) => bad('Непредвиденная ошибка: ' + (e && e.message ? e.message : e)));
+  </script>
+</body>
+</html>
+
