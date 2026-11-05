@@ -531,7 +531,8 @@ canvas.addEventListener('touchmove', function(e) {
 canvas.addEventListener('touchend', function(e) {
   e.preventDefault();
 
-  // Свайп был — фигурой уже управлял интервал, тап-поворот не нужен.
+  // Свайп был — фигурой уже управлял интервал (непрерывное движение),
+  // отдельная обработка на отпускании не нужна.
   const wasSwiping = moveInterval !== null;
   stopSingleSwipe();
 
@@ -541,9 +542,24 @@ canvas.addEventListener('touchend', function(e) {
   const dx = touch.clientX - touchStartX;
   const dy = touch.clientY - touchStartY;
 
-  // Тап (короткое касание без движения) — поворот.
-  if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
+  // Палец не сдвинулся — это тап, а не свайп: поворот.
+  // Проверяем отдельно от порога: иначе «почти-тап» на 29px тоже
+  // крутил бы фигуру вместо сдвига.
+  const TAP_SLOP = 10;
+  if (Math.abs(dx) < TAP_SLOP && Math.abs(dy) < TAP_SLOP) {
     rotatePiece();
+    return;
+  }
+
+  // Короткий свайп (кончился раньше, чем запустился интервал) —
+  // сдвигаем фигуру на 1 клетку в сторону жеста.
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Горизонтальный жест: вправо при dx > 0, влево при dx < 0.
+    moveHorizontal(dx > 0 ? 1 : -1);
+  } else if (dy > 0) {
+    // Вертикальный жест вниз — шаг вниз.
+    // Жест вверх фигуру не поднимает (как и в touchmove).
+    moveDown();
   }
 }, { passive: false });
 
