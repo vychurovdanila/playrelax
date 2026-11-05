@@ -1050,7 +1050,21 @@ let twoFingerStartX = null;
 let twoFingerStartY = null;
 let twoFingerMoved = false; // Флаг: был ли это свайп, а не тап
 
+// Отдельное состояние для ТРЁХпальцевого жеста (тап = вкл/выкл звук,
+// свайп = следующий трек). Двухпальцевый жест эти переменные не трогает.
+let threeFingerStartX = null;
+let threeFingerStartY = null;
+let threeFingerMoved = false;
+
 document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 3) {
+    threeFingerStartX = e.touches[0].clientX;
+    threeFingerStartY = e.touches[0].clientY;
+    threeFingerMoved = false;
+    stopSingleSwipe(); // На всякий случай гасим одиночное движение
+    e.stopImmediatePropagation();
+    return;
+  }
   if (e.touches.length === 2) {
     twoFingerStartX = e.touches[0].clientX;
     twoFingerStartY = e.touches[0].clientY;
@@ -1066,6 +1080,17 @@ document.addEventListener('touchstart', (e) => {
 }, { passive: true, capture: true });
 
 document.addEventListener('touchmove', (e) => {
+  // Три пальца: определяем, свайп это или тап (порог 30px, как у двух пальцев).
+  if (threeFingerStartX !== null && e.touches.length === 3) {
+    const distX = Math.abs(e.touches[0].clientX - threeFingerStartX);
+    const distY = Math.abs(e.touches[0].clientY - threeFingerStartY);
+    if (distX > 30 || distY > 30) { // Порог свайпа
+      threeFingerMoved = true;
+    }
+    e.stopImmediatePropagation();
+    return;
+  }
+
   // Если двигаем двумя пальцами, проверяем, не свайп ли это
   if (twoFingerStartX !== null && e.touches.length === 2) {
     const distX = Math.abs(e.touches[0].clientX - twoFingerStartX);
@@ -1078,6 +1103,30 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: true, capture: true });
 
 document.addEventListener('touchend', (e) => {
+  // Три пальца: тап = вкл/выкл звук, свайп = следующий трек.
+  if (threeFingerStartX !== null && e.changedTouches.length > 0) {
+    if (e.touches.length === 0) { // Все пальцы оторваны
+      if (threeFingerMoved) {
+        // Свайп тремя пальцами — следующий трек
+        if (window.audioManager) window.audioManager.next();
+      } else {
+        // Тап тремя пальцами — вкл/выкл звук
+        if (window.audioManager) {
+          if (window.audioManager.muted) {
+            window.audioManager.unmute();
+          } else {
+            window.audioManager.mute();
+          }
+          if (typeof updateUnmuteUI === 'function') updateUnmuteUI(); // Обновляем иконку (если она есть на ПК)
+        }
+      }
+      threeFingerStartX = null;
+      threeFingerStartY = null;
+    }
+    e.stopImmediatePropagation();
+    return;
+  }
+
   if (twoFingerStartX !== null && e.changedTouches.length > 0) {
     // Пока на экране остался хотя бы один палец — ждём, иначе обработаем дважды.
     if (e.touches.length === 0) {
