@@ -434,6 +434,11 @@ document.addEventListener('keydown', function(e) {
 const SWIPE_THRESHOLD = 30;
 let touchStartX = 0;
 let touchStartY = 0;
+// Позиция пальца на ПРЕДЫДУЩЕМ touchmove — по ней считаем мгновенную
+// смену направления: потянул вправо, затем вниз — фигура сразу едет вниз,
+// не дожидаясь возврата к точке старта.
+let lastTouchX = 0;
+let lastTouchY = 0;
 
 // Непрерывное движение при удержании пальца: как только палец сместился
 // достаточно для определения направления, запускаем интервал и фигура едет,
@@ -459,6 +464,9 @@ canvas.addEventListener('touchstart', function(e) {
   const touch = e.changedTouches[0];
   touchStartX = touch.clientX;
   touchStartY = touch.clientY;
+  // Базовая точка для расчёта мгновенной смены направления в touchmove.
+  lastTouchX = touch.clientX;
+  lastTouchY = touch.clientY;
 
   // Страховка от жеста, завершившегося без touchend (например, палец ушёл
   // за пределы окна): перед новым касанием гасим прошлый интервал.
@@ -469,30 +477,42 @@ canvas.addEventListener('touchmove', function(e) {
   // preventDefault — чтобы страница не скроллилась при свайпах
   e.preventDefault();
 
-  // Смещение считаем от точки касания: палец должен уйти от неё на порог,
-  // чтобы направление считалось определённым.
   const touch = e.changedTouches[0];
+  // Смещение от точки касания — нужно только чтобы понять, «распознан» ли
+  // свайп вообще (защита от случайного микро-дрожания пальца).
   const dx = touch.clientX - touchStartX;
   const dy = touch.clientY - touchStartY;
 
-  // Палец ещё не ушёл достаточно далеко — направление неизвестно.
-  if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
+  // Свайп ещё не распознан и фигура не движется — выходим.
+  // Если движение УЖЕ начато (moveInterval), направление пересчитываем
+  // всегда, даже при малом смещении от точки старта: это и даёт мгновенную
+  // реакцию на разворот пальца.
+  if (moveInterval === null &&
+      Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
     return;
   }
 
-  // Определяем доминирующую ось. Вниз — только положительное dy
-  // (движение пальцем вверх фигуру не поднимает).
-  let direction = null;
-  if (Math.abs(dx) > Math.abs(dy)) {
-    direction = dx > 0 ? 'right' : 'left';
-  } else if (dy > 0) {
+  // Направление считаем от ПРЕДЫДУЩЕЙ позиции пальца, а не от точки старта:
+  // палец повернул — направление меняется на следующем же кадре.
+  const stepX = touch.clientX - lastTouchX;
+  const stepY = touch.clientY - lastTouchY;
+  lastTouchX = touch.clientX;
+  lastTouchY = touch.clientY;
+
+  // Доминирующая ось среди последнего шага. Вниз — только положительное
+  // смещение (движение пальцем вверх фигуру не поднимает).
+  let direction = currentDirection;
+  if (Math.abs(stepX) > Math.abs(stepY)) {
+    if (stepX > 0) direction = 'right';
+    else if (stepX < 0) direction = 'left';
+  } else if (stepY > 0) {
     direction = 'down';
   }
 
   if (direction === null) return;
 
-  // Направление могло измениться (слева направо, вверх-вниз) — обновляем
-  // переменную, но новый интервал НЕ запускаем: старый уже работает.
+  // Обновляем актуальное направление: интервал ниже читает его на каждом
+  // тике, поэтому смена оси применяется сразу.
   currentDirection = direction;
 
   if (moveInterval) return;

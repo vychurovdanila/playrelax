@@ -23,6 +23,11 @@
     <iframe id="bg-iframe-2" class="bg-iframe" src="" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
   </div>
 
+  <!-- Затемняющая плашка поверх видеофона.
+       z-index: 1 — выше .bg-iframe (0), ниже канваса (10) и кнопок (100).
+       pointer-events: none — свайпы по канвасу проходят сквозь плашку. -->
+  <div id="overlay"></div>
+
   <!-- ЭКРАН СТАРТА: виден при загрузке, скрывается по клику.
        Тетрис (canvas) до этого невидим и не принимает клики. -->
   <div id="start-screen">
