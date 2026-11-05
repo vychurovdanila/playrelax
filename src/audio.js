@@ -153,6 +153,11 @@ class AudioManager {
     const prevSound = this.sounds[this.currentIndex];
     if (prevSound) prevSound.stop();
 
+    // Снимаем мьют со СТАРОГО трека перед сменой индекса: Howler хранит
+    // mute на самом Howl, и без сброса следующий трек мог унаследовать
+    // или потерять состояние. Само muted-состояние живёт в this.muted.
+    if (prevSound) prevSound.mute(false);
+
     this.currentIndex = this.getNextIndex();
     this.saveSettings();
 
@@ -160,6 +165,10 @@ class AudioManager {
       const sound = this.sounds[this.currentIndex];
       if (sound) {
         sound.volume(this.volume);
+        // Флаг this.muted — источник истины: если звук выключен кнопкой,
+        // новый трек тоже должен играть БЕЗ звука (иначе мьют «теряется»
+        // при смене трека — в т.ч. при автопереходе через onend).
+        sound.mute(this.muted);
         sound.play();
       }
     }

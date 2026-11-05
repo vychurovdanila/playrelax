@@ -601,6 +601,13 @@ function switchWorld() {
   // 1. Загружаем новое видео в скрытый iframe
   nextEl.src = videoUrls[currentVideoIndex];
 
+  // Смена мира = смена настроения: вместе с видео переключаем и музыку.
+  // window.audioManager создаётся в src/audio.js; проверка на существование
+  // защищает от ошибки, если скрипт аудио ещё не загрузился и менеджера нет.
+  if (window.audioManager) {
+    window.audioManager.next();
+  }
+
   // 2. Ждем миллисекунду, чтобы iframe начал загружаться, и запускаем кроссфейд
   setTimeout(() => {
     activeEl.classList.remove('active'); // Старый плавно уходит в 0
