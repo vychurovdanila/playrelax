@@ -228,12 +228,11 @@ function placeTetromino() {
     }
 
     if (highestBlock !== ROWS) {
-      // 2. Отступ сверху (9 пустых рядов)
-      if (highestBlock < cameraY + 9) {
-        cameraY = highestBlock - 9;
-      }
-
-      // 3. Выплывание снизу (ТОЛЬКО если есть скрытые блоки внизу)
+      // 2. Выплывание снизу (ТОЛЬКО если есть скрытые блоки внизу).
+      // ВАЖНО: этот блок идёт ДО отступа сверху. Если считать его после
+      // сдвига cameraY (шаг 3), условие сравнивается с уже уехавшей камерой
+      // и срабатывает на 1-2 ряда раньше, чем низ башни реально уйдёт
+      // за экран — именно это давало преждевременный выезд скрытых рядов.
       if (linesCleared > 0) {
         let hasHiddenBlocks = false;
         // Строго проверяем зону НИЖЕ видимого экрана
@@ -244,10 +243,27 @@ function placeTetromino() {
           }
         }
 
-        // Если внизу есть блоки и башня просела до предела - опускаем камеру на 1
-        if (hasHiddenBlocks && lowestBlock >= cameraY + VISIBLE_ROWS - 2) {
+        // Высота башни в видимой зоне: от верхнего блока до нижнего.
+        const towerHeight = lowestBlock - highestBlock + 1;
+
+        // ЖЁСТКОЕ УСЛОВИЕ: камера опускается только если одновременно
+        // 1) ниже экрана есть скрытые блоки;
+        // 2) низ башни стоит в пределах последних 2 рядов видимой зоны;
+        // 3) башня стала совсем низкой (не выше 3 рядов) — иначе на экране
+        //    ещё полно свободного места и показывать скрытые ряды рано.
+        if (
+          hasHiddenBlocks &&
+          lowestBlock >= cameraY + VISIBLE_ROWS - 2 &&
+          towerHeight <= 3
+        ) {
           cameraY += 1;
         }
+      }
+
+      // 3. Отступ сверху (9 пустых рядов).
+      // Считается ПОСЛЕ шага 2, чтобы не перезаписывать cameraY заранее.
+      if (highestBlock < cameraY + 9) {
+        cameraY = highestBlock - 9;
       }
     }
 
@@ -414,20 +430,88 @@ const SWIPE_THRESHOLD = 30;
 let touchStartX = 0;
 let touchStartY = 0;
 
+// Непрерывное движение при удержании пальца: как только палец сместился
+// достаточно для определения направления, запускаем интервал и фигура едет,
+// пока палец на экране. 50 мс = 20 шагов в секунду (плавно).
+// moveHorizontal/moveDown сами проверяют isValidMove внутри, поэтому фигура
+// не проходит сквозь стены и не «застревает» в воздухе.
+let moveInterval = null;
+let currentDirection = null;
+
+// Останавливаем автоповтор. Вызывается из touchend и из двухпальцевых
+// обработчиков: если второй палец коснулся во время одиночного перетаскивания,
+// висящий интервал продолжал бы двигать фигуру сам по себе.
+function stopSingleSwipe() {
+  if (moveInterval) {
+    clearInterval(moveInterval);
+  }
+  moveInterval = null;
+  currentDirection = null;
+}
+
 canvas.addEventListener('touchstart', function(e) {
   e.preventDefault();
   const touch = e.changedTouches[0];
   touchStartX = touch.clientX;
   touchStartY = touch.clientY;
+
+  // Страховка от жеста, завершившегося без touchend (например, палец ушёл
+  // за пределы окна): перед новым касанием гасим прошлый интервал.
+  stopSingleSwipe();
 }, { passive: false });
 
 canvas.addEventListener('touchmove', function(e) {
   // preventDefault — чтобы страница не скроллилась при свайпах
   e.preventDefault();
+
+  // Смещение считаем от точки касания: палец должен уйти от неё на порог,
+  // чтобы направление считалось определённым.
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX;
+  const dy = touch.clientY - touchStartY;
+
+  // Палец ещё не ушёл достаточно далеко — направление неизвестно.
+  if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
+    return;
+  }
+
+  // Определяем доминирующую ось. Вниз — только положительное dy
+  // (движение пальцем вверх фигуру не поднимает).
+  let direction = null;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    direction = dx > 0 ? 'right' : 'left';
+  } else if (dy > 0) {
+    direction = 'down';
+  }
+
+  if (direction === null) return;
+
+  // Направление могло измениться (слева направо, вверх-вниз) — обновляем
+  // переменную, но новый интервал НЕ запускаем: старый уже работает.
+  currentDirection = direction;
+
+  if (moveInterval) return;
+
+  moveInterval = setInterval(() => {
+    if (currentDirection === 'left') {
+      moveHorizontal(-1);
+    } else if (currentDirection === 'right') {
+      moveHorizontal(1);
+    } else if (currentDirection === 'down') {
+      moveDown();
+    }
+  }, 50);
 }, { passive: false });
 
 canvas.addEventListener('touchend', function(e) {
   e.preventDefault();
+
+  // Свайп был — фигурой уже управлял интервал, тап-поворот не нужен.
+  const wasSwiping = moveInterval !== null;
+  stopSingleSwipe();
+
+  if (wasSwiping) return;
+
   const touch = e.changedTouches[0];
   const dx = touch.clientX - touchStartX;
   const dy = touch.clientY - touchStartY;
@@ -435,18 +519,6 @@ canvas.addEventListener('touchend', function(e) {
   // Тап (короткое касание без движения) — поворот.
   if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) {
     rotatePiece();
-    return;
-  }
-
-  // Свайп: определяем доминирующую ось.
-  if (Math.abs(dx) > Math.abs(dy)) {
-    // влево/вправо
-    moveHorizontal(dx > 0 ? 1 : -1);
-  } else {
-    // вниз — ускоренное падение на 1 клетку
-    if (dy > 0) {
-      moveDown();
-    }
   }
 }, { passive: false });
 
@@ -660,6 +732,9 @@ document.addEventListener('touchstart', (e) => {
     twoFingerStartX = e.touches[0].clientX;
     twoFingerStartY = e.touches[0].clientY;
     twoFingerMoved = false;
+    // Второй палец коснулся во время одиночного перетаскивания: гасим
+    // автоповтор, иначе фигура продолжит ехать сама, пока палец на экране.
+    stopSingleSwipe();
     // Двухпальцевый жест — не для игры: гасим его ДО канваса.
     e.stopImmediatePropagation();
   } else {
