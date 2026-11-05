@@ -139,7 +139,10 @@ function getNextTetromino() {
     // Визуальные координаты для «физики тела»: отрисовка плавно догоняет
     // логические row/col, логика и коллизии остаются мгновенными.
     visualRow: row,
-    visualCol: col
+    visualCol: col,
+    visualRot: 0, // Ошибка угла отрисовки относительно матрицы (гаснет к 0)
+    targetRot: 0, // Целевой угол визуального доворота (всегда 0 — «догнать форму»)
+    velRot: 0     // Скорость визуального вращения (инерция)
   };
 }
 
@@ -371,9 +374,27 @@ function loop() {
     }
 
     // Коэффициент массы (чем меньше, тем тяжелее).
-    const smoothFactor = 0.25;
+    const smoothFactor = 0.12;
     tetromino.visualRow += (tetromino.row - tetromino.visualRow) * smoothFactor;
     tetromino.visualCol += (tetromino.col - tetromino.visualCol) * smoothFactor;
+
+    // Физика вращения (инерция): визуальный угол плавно гаснет к targetRot (=0).
+    // Отдельной переменной velRot управляем скоростью доворота.
+    const rotStiffness = 0.09;
+    const rotDamping = 0.62;
+
+    if (tetromino.velRot === undefined) tetromino.velRot = 0; // Инициализация скорости вращения
+
+    tetromino.velRot += (tetromino.targetRot - tetromino.visualRot) * rotStiffness;
+    tetromino.velRot *= rotDamping;
+    tetromino.visualRot += tetromino.velRot;
+
+    // Когда угол почти догнал цель — обнуляем, чтобы не копить «дрожание»
+    // и не накапливать дрейф от младших разрядов float.
+    if (Math.abs(tetromino.targetRot - tetromino.visualRot) < 0.001) {
+      tetromino.visualRot = tetromino.targetRot;
+      tetromino.velRot = 0;
+    }
 
     // «Душа» — прозрачный контур точно на логической позиции (на сетке).
     // Это целевая точка, куда летит тело.
@@ -391,18 +412,36 @@ function loop() {
       }
     }
 
-    // «Тело» — плотные блоки, плавно догоняющие душу.
+    // «Тело» — плотные блоки, поворачивающиеся с инерцией (visualRot).
+    // Матрица уже отражает логический поворот; visualRot — визуальная ошибка,
+    // которая плавно гаснет к нулю, поэтому форма «докручивается» на месте.
+    context.save(); // Сохраняем состояние контекста
+
+    const pieceWidth = tetromino.matrix[0].length;
+    const pieceHeight = tetromino.matrix.length;
+
+    // Вычисляем центр фигуры для вращения (вычитаем cameraY для Y)
+    const centerX = (tetromino.visualCol + pieceWidth / 2) * grid;
+    const centerY = (tetromino.visualRow + pieceHeight / 2 - cameraY) * grid;
+
+    context.translate(centerX, centerY); // Переносим начало координат в центр фигуры
+    context.rotate(tetromino.visualRot); // Вращаем холст
+
     context.fillStyle = colors[tetromino.name];
 
-    for (let row = 0; row < tetromino.matrix.length; row++) {
-      for (let col = 0; col < tetromino.matrix[row].length; col++) {
+    for (let row = 0; row < pieceHeight; row++) {
+      for (let col = 0; col < pieceWidth; col++) {
         if (tetromino.matrix[row][col]) {
-
-          // на 1 px меньше grid — создаёт эффект сетки
-          context.fillRect((tetromino.visualCol + col) * grid, (tetromino.visualRow + row - cameraY) * grid, grid - 1, grid - 1);
+          // Рисуем блоки относительно центра
+          context.fillRect(
+            (col - pieceWidth / 2) * grid,
+            (row - pieceHeight / 2) * grid,
+            grid - 1, grid - 1
+          );
         }
       }
     }
+    context.restore(); // Возвращаем контекст в исходное состояние
   }
 }
 
@@ -422,9 +461,20 @@ function moveHorizontal(dx) {
 // Поворот активной фигуры.
 function rotatePiece() {
   if (!tetromino) return;
-  const matrix = rotate(tetromino.matrix);
-  if (isValidMove(matrix, tetromino.row, tetromino.col)) {
-    tetromino.matrix = matrix;
+  // rotate() вращает матрицу по часовой стрелке. Canvas rotate(+a) — тоже
+  // по часовой (ось Y вниз), поэтому знаки совпадают.
+  const rotated = rotate(tetromino.matrix);
+  if (isValidMove(rotated, tetromino.row, tetromino.col)) {
+    // Матрица меняется мгновенно (логика и коллизии — как раньше). Чтобы
+    // отрисовка НЕ прыгнула, в кадр подмены компенсируем угол: рисуем новую
+    // матрицу «как старую» (visualRot = -PI/2), а инерция плавно доводит
+    // визуальный угол до 0 — то есть до истинного вида новой формы.
+    // Иначе получается двойной поворот: матрица уже повёрнута И холст
+    // дополнительно крутится на +90° — тело улетает в противоположную сторону.
+    tetromino.matrix = rotated;
+    tetromino.visualRot -= Math.PI / 2; // компенсация: рисуем как до поворота
+    tetromino.targetRot = 0;            // цель — «догнать» новый вид
+
     // При повороте матрица меняется, а вместе с ней и bounding box фигуры:
     // центр «прыгает» на клетку. Логические row/col остаются прежними, поэтому
     // тело мгновенно перестраивается вокруг души, а не улетает догонять старую
