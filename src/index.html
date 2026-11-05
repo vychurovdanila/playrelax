@@ -44,6 +44,9 @@
 
   <script src="vendor/howler.min.js"></script>
   <script src="audio.js"></script>
+  <!-- Система частиц (шлейф от фигуры). Должна идти ПЕРЕД game.js:
+       game.js вызывает Particles.spawnFromPiece / Particles.update. -->
+  <script src="particles.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
