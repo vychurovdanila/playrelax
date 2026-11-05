@@ -434,8 +434,43 @@ function loop() {
 
     // Коэффициент массы (чем меньше, тем тяжелее).
     const smoothFactor = 0.12;
-    tetromino.visualRow += (tetromino.row - tetromino.visualRow) * smoothFactor;
     tetromino.visualCol += (tetromino.col - tetromino.visualCol) * smoothFactor;
+
+    // ФИЗИКА ПО ОСИ Y
+    const diffY = tetromino.row - tetromino.visualRow;
+
+    if (diffY > 0.01) {
+      // Базовая скорость равномерного падения: ровно 1 клетка за 36 кадров
+      // (столько же, сколько шагает логическая «душа» — см. count > 35).
+      // Именно постоянная скорость даёт абсолютно равномерное падение
+      // без рывков: шаг за кадр не зависит от diffY.
+      const baseSpeed = 1 / 36;
+
+      let step = baseSpeed;
+
+      // Догон остаточного «хвоста» — только после свайпа вниз, когда тело
+      // отстало БОЛЬШЕ чем на одну логическую клетку (diffY > 1).
+      // В обычном падении diffY колеблется 0..1 (это штатная фаза шага души),
+      // поэтому порог 1 не даёт догону вмешиваться и ломать равномерность.
+      if (diffY > 1.0) {
+        if (!tetromino.velRow) tetromino.velRow = baseSpeed;
+        const targetSpeed = baseSpeed + (diffY - 1.0) * 0.4;
+        tetromino.velRow += (targetSpeed - tetromino.velRow) * 0.3;
+        step = Math.max(baseSpeed, tetromino.velRow);
+      } else {
+        // Спокойный режим: скорость строго базовая, инерция не накапливается.
+        tetromino.velRow = baseSpeed;
+      }
+
+      // Двигаем тело
+      tetromino.visualRow += step;
+
+      // Защита от перелета сквозь душу
+      if (tetromino.visualRow > tetromino.row) {
+        tetromino.visualRow = tetromino.row;
+        tetromino.velRow = baseSpeed; // Сбрасываем скорость на базовую при касании
+      }
+    }
 
     // Физика вращения (инерция): визуальный угол плавно гаснет к targetRot (=0).
     // Отдельной переменной velRot управляем скоростью доворота.
