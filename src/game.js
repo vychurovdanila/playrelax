@@ -503,6 +503,15 @@ function forceShuffle(manager) {
 // иначе кнопка звука рассинхронизируется с реальным состоянием.
 function startMusic(manager) {
   if (!manager) return;
+
+  // Плейлист грузится из playlist.json асинхронно. Если манифест ещё не
+  // пришёл, треков нет — просто выходим: play() выставит playRequested,
+  // и музыка стартует сама, как только список будет загружен.
+  if (!Array.isArray(manager.tracks) || manager.tracks.length === 0) {
+    manager.play(); // no-op, но фиксирует запрос на воспроизведение
+    return;
+  }
+
   forceShuffle(manager);
   manager.muted = false;
   manager.unmute();
@@ -550,7 +559,7 @@ if (btnUnmute) {
 // --- ЛОГИКА КРОССФЕЙДА ---
 const videoUrls = [
   'https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1',
-  'https://kinescope.io/embed/bb6vH3tKexKpvcaSNAVDPC?autoplay=1&mute=1',
+  'https://kinescope.io/embed/8zAsGmrzMbTPKZRbTfqj7S?autoplay=1&mute=1',
   'https://kinescope.io/embed/doXEtFTSEQgmEqia53SpVw?autoplay=1&mute=1',
   'https://kinescope.io/embed/ovoxefTvckdj5xKAxF15Lg?autoplay=1&mute=1'
 ];
