@@ -372,6 +372,17 @@ function moveDown() {
 // --- Клавиатура (современный API: e.key) ---
 document.addEventListener('keydown', function(e) {
 
+  // пробел (десктоп): пауза/продолжить игру.
+  // e.code проверяем вместе с e.key — так пробел ловится одинаково на любой
+  // раскладке. preventDefault — чтобы страница не скроллилась пробелом.
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    isPaused = !isPaused;
+    count = 0;
+    document.body.classList.toggle('is-paused', isPaused);
+    return;
+  }
+
   // стрелки влево/вправо (движение)
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     moveHorizontal(e.key === 'ArrowLeft' ? -1 : 1);
