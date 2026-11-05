@@ -228,47 +228,52 @@ function placeTetromino() {
     }
 
     if (highestBlock !== ROWS) {
-      // 2. Выплывание снизу (ТОЛЬКО если есть скрытые блоки внизу).
-      // ВАЖНО: этот блок идёт ДО отступа сверху. Если считать его после
-      // сдвига cameraY (шаг 3), условие сравнивается с уже уехавшей камерой
-      // и срабатывает на 1-2 ряда раньше, чем низ башни реально уйдёт
-      // за экран — именно это давало преждевременный выезд скрытых рядов.
-      if (linesCleared > 0) {
-        let hasHiddenBlocks = false;
-        // Строго проверяем зону НИЖЕ видимого экрана
-        for (let r = cameraY + VISIBLE_ROWS; r < ROWS; r++) {
-          if (playfield[r].some(cell => cell !== 0)) {
-            hasHiddenBlocks = true;
-            break;
-          }
-        }
-
-        // Высота башни в видимой зоне: от верхнего блока до нижнего.
-        const towerHeight = lowestBlock - highestBlock + 1;
-
-        // ЖЁСТКОЕ УСЛОВИЕ: камера опускается только если одновременно
-        // 1) ниже экрана есть скрытые блоки;
-        // 2) низ башни стоит в пределах последних 2 рядов видимой зоны;
-        // 3) башня стала совсем низкой (не выше 3 рядов) — иначе на экране
-        //    ещё полно свободного места и показывать скрытые ряды рано.
-        if (
-          hasHiddenBlocks &&
-          lowestBlock >= cameraY + VISIBLE_ROWS - 2 &&
-          towerHeight <= 3
-        ) {
-          cameraY += 1;
-        }
-      }
-
-      // 3. Отступ сверху (9 пустых рядов).
-      // Считается ПОСЛЕ шага 2, чтобы не перезаписывать cameraY заранее.
+      // 2. Отступ сверху (9 пустых рядов).
       if (highestBlock < cameraY + 9) {
         cameraY = highestBlock - 9;
       }
+
+      // 3. НАГРАДА: выезд из подвала.
+      // Только когда башня в видимой зоне почти разрушена (<= 2 заполненных
+      // рядов) и в подвале есть что показывать.
+      if (linesCleared > 0) {
+        // Считаем количество заполненных рядов в ВИДИМОЙ зоне.
+        let filledRowsVisible = 0;
+        for (let r = cameraY; r < cameraY + VISIBLE_ROWS; r++) {
+          if (playfield[r] && playfield[r].some(cell => cell !== 0)) {
+            filledRowsVisible++;
+          }
+        }
+
+        if (filledRowsVisible <= 2) {
+          // Проверяем, есть ли что показывать в подвале.
+          let hasHiddenBlocks = false;
+          for (let r = cameraY + VISIBLE_ROWS; r < ROWS; r++) {
+            if (playfield[r].some(cell => cell !== 0)) {
+              hasHiddenBlocks = true;
+              break;
+            }
+          }
+
+          if (hasHiddenBlocks) {
+            // Опускаем окно камеры на 1 ряд — в кадр въезжает ряд из подвала.
+            // Важно: playfield НЕ сдвигаем. Сдвиг массива вместе с cameraY
+            // компенсирует сам себя (playfield.shift() + cameraY -= 1 дают
+            // ровно ту же картинку), и подвал остаётся за экраном. А push
+            // пустого ряда добавляет пустоту, а не блоки из подвала.
+            cameraY += 1;
+          }
+        }
+      }
     }
 
-    // 4. Бесконечность СВЕРХУ
-    if (cameraY < 0) {
+    // 4. Бесконечность СВЕРХУ (упреждающий сдвиг).
+    // Стакан вместе с камерой сдвигается на SHIFT рядов ЗАРАНЕЕ, пока
+    // cameraY ещё далёк от 0. Если ждать cameraY < 0, то новая фигура
+    // спавнится с row = cameraY - 2 < 0 и isValidMove падает на
+    // playfield[отрицательный индекс]: сдвиг на +20 не успевает
+    // компенсировать рост highestBlock.
+    if (cameraY < 15) {
       const SHIFT = 20;
       for (let i = 0; i < SHIFT; i++) {
         playfield.unshift(new Array(COLS).fill(0));
@@ -278,7 +283,7 @@ function placeTetromino() {
       if (tetromino) tetromino.row += SHIFT;
     }
 
-    // 5. Бесконечность СНИЗУ
+    // 5. Бесконечность СНИЗУ (тот же принцип: стакан едет вместе с камерой).
     if (cameraY > 180) {
       const SHIFT = 20;
       for (let i = 0; i < SHIFT; i++) {
