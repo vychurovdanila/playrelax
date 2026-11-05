@@ -28,6 +28,27 @@ let globalFallVelocity = 0;  // Скорость падения
 let fallThresholdRow = 0;    // Ниже этой строки (вкл.) блоки не падают после съедания линий
 const playfield = [];
 
+/* ============================================================
+   Вспомогательная отрисовка блока со скруглением только
+   внешних углов. Углы задаются флагами tl/tr/br/bl: угол
+   скругляется, только если у клетки нет соседа по обеим
+   сторонам этого угла (иначе стык остаётся прямым).
+   ============================================================ */
+function drawRoundedBlock(ctx, x, y, w, h, r, tl, tr, br, bl) {
+  ctx.beginPath();
+  ctx.moveTo(x + (tl ? r : 0), y);
+  ctx.lineTo(x + w - (tr ? r : 0), y);
+  if (tr) ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - (br ? r : 0));
+  if (br) ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + (bl ? r : 0), y + h);
+  if (bl) ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + (tl ? r : 0));
+  if (tl) ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
 // Как рисуется каждый тетромино.
 // @see https://tetris.fandom.com/wiki/SRS
 const tetrominos = {
@@ -354,7 +375,26 @@ function loop() {
         // Падают (визуально сдвигаются вниз на globalFallOffset) только блоки
         // выше съеденных линий: их строки идут до fallThresholdRow.
         const fallShift = r < fallThresholdRow ? globalFallOffset : 0;
-        context.fillRect(col * grid, screenRow * grid - fallShift, grid - 1, grid - 1);
+
+        // Скругляем только внешние углы: угол прямой, если у клетки есть
+        // сосед по обеим сторонам этого угла (внутренний стык фигуры).
+        const hasTop = r > 0 && playfield[r - 1][col];
+        const hasBottom = r < ROWS - 1 && playfield[r + 1][col];
+        const hasLeft = col > 0 && playfield[r][col - 1];
+        const hasRight = col < COLS - 1 && playfield[r][col + 1];
+
+        drawRoundedBlock(
+          context,
+          col * grid,
+          screenRow * grid - fallShift,
+          grid - 1,
+          grid - 1,
+          5,
+          !hasTop && !hasLeft,
+          !hasTop && !hasRight,
+          !hasBottom && !hasRight,
+          !hasBottom && !hasLeft
+        );
       }
     }
   }
@@ -462,11 +502,25 @@ function loop() {
     for (let row = 0; row < pieceHeight; row++) {
       for (let col = 0; col < pieceWidth; col++) {
         if (tetromino.matrix[row][col]) {
-          // Рисуем блоки относительно центра
-          context.fillRect(
+          // Скругляем только внешние углы: угол прямой, если у клетки есть
+          // сосед по обеим сторонам этого угла (внутренний стык фигуры).
+          const hasTop = row > 0 && tetromino.matrix[row - 1][col];
+          const hasBottom = row < pieceHeight - 1 && tetromino.matrix[row + 1][col];
+          const hasLeft = col > 0 && tetromino.matrix[row][col - 1];
+          const hasRight = col < pieceWidth - 1 && tetromino.matrix[row][col + 1];
+
+          // Рисуем блоки относительно центра фигуры.
+          drawRoundedBlock(
+            context,
             (col - pieceWidth / 2) * grid,
             (row - pieceHeight / 2) * grid,
-            grid - 1, grid - 1
+            grid - 1,
+            grid - 1,
+            5,
+            !hasTop && !hasLeft,
+            !hasTop && !hasRight,
+            !hasBottom && !hasRight,
+            !hasBottom && !hasLeft
           );
         }
       }

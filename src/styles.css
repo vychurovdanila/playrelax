@@ -39,6 +39,8 @@ canvas {
      рамку по бокам обрезало, и её не было видно). */
   box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Скругление углов игрового поля (10px). */
+  border-radius: 10px;
   opacity: 0;
   pointer-events: none;
   /* Канвас в игре — прозрачный на 70% и чёткий; фон под ним размыт.
@@ -247,5 +249,7 @@ body.is-paused #overlay {
      за габариты поля и не обрезается краем экрана. */
   canvas {
     border: 1px solid rgba(255, 255, 255, 0.3);
+    /* Скругление углов поля на мобилке — 8px. */
+    border-radius: 8px;
   }
 }
