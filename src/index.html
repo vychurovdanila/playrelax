@@ -17,13 +17,9 @@
   <div class="bg-video">
     <!-- autoplay=1&mute=1 — плеер Kinescope запускает видео сам, без звука
          (звук музыки идёт отдельно через Howler), поэтому экран с кнопкой
-         Play не показывается.
-         allow — БЕЗ encrypted-media и без allow="...; autoplay" в связке с
-         микрофоном/камерой: видеофон не должен получить доступ к звуку,
-         иначе он конфликтует с фоновой музыкой. -->
+         Play не показывается. -->
     <iframe id="bg-iframe-1" class="bg-iframe active" src="https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-    <!-- Второй iframe пуст: в него switchWorld подставит следующее видео
-         (src и allow перезаписывает функция switchWorld в src/game.js). -->
+    <!-- Второй iframe пуст: в него switchWorld подставит следующее видео. -->
     <iframe id="bg-iframe-2" class="bg-iframe" src="" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
   </div>
 

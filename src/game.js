@@ -537,28 +537,12 @@ if (btnUnmute) {
    Логика тетриса и звука выше — здесь только фон.
    ============================================================ */
 // --- ЛОГИКА КРОССФЕЙДА ---
-// ?autoplay=1&mute=1 обязателен В КАЖДОЙ ссылке: видеофон всегда без звука,
-// иначе он конфликтует с фоновой музыкой (Howler). Ссылки без ? получают
-// параметр через тот же объект URL ниже — здесь храним единый вид.
 const videoUrls = [
   'https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1',
   'https://kinescope.io/embed/bb6vH3tKexKpvcaSNAVDPC?autoplay=1&mute=1',
   'https://kinescope.io/embed/doXEtFTSEQgmEqia53SpVw?autoplay=1&mute=1',
   'https://kinescope.io/embed/ovoxefTvckdj5xKAxF15Lg?autoplay=1&mute=1'
 ];
-
-// Гарантия беззвучности независимо от того, что записано в videoUrls:
-// выставляем autoplay=1 и mute=1 в query-строке. Если ссылка уже содержит
-// параметры — добавляем через &, если их нет — начинаем с ?.
-function withMutedQuery(url) {
-  if (!url) return url;
-  const hasQuery = url.includes('?');
-  const sep = hasQuery ? '&' : '?';
-  let result = url;
-  if (!/[?&]mute=/.test(result)) result += `${sep}mute=1`;
-  if (!/[?&]autoplay=/.test(result)) result += `&autoplay=1`;
-  return result;
-}
 let currentVideoIndex = 0;
 let activeIframe = 1; // 1 или 2
 
@@ -603,14 +587,8 @@ function switchWorld() {
     return;
   }
 
-  // 1. Загружаем новое видео в скрытый iframe.
-  //    withMutedQuery гарантирует mute=1&autoplay=1 даже если ссылку
-  //    в videoUrls когда-нибудь отредактируют без параметров.
-  nextEl.src = withMutedQuery(videoUrls[currentVideoIndex]);
-  // Принудительно отключаем звук у iframe: разрешаем только autoplay
-  // и fullscreen — без encrypted-media/микрофона/камеры. Некоторые браузеры
-  // игнорируют mute в URL, а политика allow звук у iframe не даёт.
-  nextEl.setAttribute('allow', 'autoplay; fullscreen');
+  // 1. Загружаем новое видео в скрытый iframe
+  nextEl.src = videoUrls[currentVideoIndex];
 
   // 2. Ждем миллисекунду, чтобы iframe начал загружаться, и запускаем кроссфейд
   setTimeout(() => {
