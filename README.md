@@ -32,7 +32,7 @@
 
 ```bash
 # 1. Клонируйте репозиторий
-git clone https://github.com/ВАШ_НИК/playrelax.git
+git clone https://github.com/vychurovdanila/playrelax.git
 cd playrelax
 
 # 2. Запустите локальный сервер (требуется Python 3)
@@ -47,9 +47,9 @@ python -m http.server 8080 --directory src
 
 Из-за ограничений Git на размер файлов, аудио и видео не хранятся в репозитории.
 
-Для работы звука создайте папку `assets/audio/` и положите туда mp3-файлы.
+Для работы звука создайте папку `src/assets/audio/` и положите туда mp3-файлы.
 
-Список треков управляется через файл `assets/audio/playlist.json`.
+Список треков управляется через файл `src/assets/audio/playlist.json`.
 
 Видеофоны подгружаются через внешний сервис Kinescope (ссылки в `src/game.js`).
 

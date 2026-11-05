@@ -383,6 +383,15 @@ document.addEventListener('keydown', function(e) {
     return;
   }
 
+  // Tab (десктоп): смена видеофона — десктопный аналог свайпа двумя пальцами
+  // на мобильных. preventDefault обязателен: без него браузер переведёт фокус
+  // на кнопки или адресную строку вместо смены мира.
+  if (e.code === 'Tab' || e.key === 'Tab') {
+    e.preventDefault();
+    switchWorld();
+    return;
+  }
+
   // стрелки влево/вправо (движение)
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     moveHorizontal(e.key === 'ArrowLeft' ? -1 : 1);
