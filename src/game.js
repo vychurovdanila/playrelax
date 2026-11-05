@@ -515,8 +515,21 @@ canvas.addEventListener('touchmove', function(e) {
   // тике, поэтому смена оси применяется сразу.
   currentDirection = direction;
 
+  // Движение уже идёт — направление обновлено выше, больше ничего не нужно.
   if (moveInterval) return;
 
+  // Первый шаг жеста. Сдвигаем фигуру СРАЗУ, не дожидаясь первого тика
+  // интервала: при быстром коротком свайпе палец отрывается за 20–40 мс,
+  // а тик стоит на 50 мс — без мгновенного сдвига фигура не двигалась вовсе.
+  if (currentDirection === 'left') {
+    moveHorizontal(-1);
+  } else if (currentDirection === 'right') {
+    moveHorizontal(1);
+  } else if (currentDirection === 'down') {
+    moveDown();
+  }
+
+  // Дальше — непрерывное движение, пока палец на экране.
   moveInterval = setInterval(() => {
     if (currentDirection === 'left') {
       moveHorizontal(-1);
