@@ -135,7 +135,11 @@ function getNextTetromino() {
     name: name,      // имя фигуры (L, O, и т.д.)
     matrix: matrix,  // текущая матрица поворота
     row: row,        // текущая строка (стартует за экраном)
-    col: col         // текущий столбец
+    col: col,        // текущий столбец
+    // Визуальные координаты для «физики тела»: отрисовка плавно догоняет
+    // логические row/col, логика и коллизии остаются мгновенными.
+    visualRow: row,
+    visualCol: col
   };
 }
 
@@ -280,7 +284,12 @@ function placeTetromino() {
         playfield.pop();
       }
       cameraY += SHIFT;
-      if (tetromino) tetromino.row += SHIFT;
+      if (tetromino) {
+        tetromino.row += SHIFT;
+        // Сдвиг камеры — телепорт логики, а не падение. Визуальную координату
+        // двигаем синхронно, иначе «тело» отстанет на 20 строк и уедет за экран.
+        tetromino.visualRow += SHIFT;
+      }
     }
 
     // 5. Бесконечность СНИЗУ (тот же принцип: стакан едет вместе с камерой).
@@ -291,7 +300,11 @@ function placeTetromino() {
         playfield.shift();
       }
       cameraY -= SHIFT;
-      if (tetromino) tetromino.row -= SHIFT;
+      if (tetromino) {
+        tetromino.row -= SHIFT;
+        // Симметрично верхнему сдвигу: камера — телепорт, тело едет вместе.
+        tetromino.visualRow -= SHIFT;
+      }
     }
 
   tetromino = getNextTetromino();
@@ -339,6 +352,46 @@ function loop() {
       }
     }
 
+    // ФИЗИКА: Плавное движение "тела" к "душе" (к логическим координатам).
+    // Логика и коллизии остались мгновенными — догоняет только отрисовка.
+    // При СМЕНЕ фигуры visual-координаты ставим жёстко: новая фигура уже
+    // стартует с нужной позиции, интерполировать от предыдущей нельзя —
+    // иначе «тело» прилетело бы из места последней постановки через пол-экрана.
+    if (tetromino.visualCol === undefined) {
+      tetromino.visualRow = tetromino.row;
+      tetromino.visualCol = tetromino.col;
+    }
+
+    // Мгновенные прыжки по вертикали (сдвиг камеры на SHIFT=20 в updateCamera,
+    // строки без привязки к визуальной координате) — не инерция, а телепорт.
+    // Их нужно переносить на тело рывком, иначе оно «уедет» на 20 строк.
+    // Признак: логическая строка далеко за пределами видимой зоны.
+    if (Math.abs(tetromino.row - tetromino.visualRow) > VISIBLE_ROWS) {
+      tetromino.visualRow = tetromino.row;
+    }
+
+    // Коэффициент массы (чем меньше, тем тяжелее).
+    const smoothFactor = 0.25;
+    tetromino.visualRow += (tetromino.row - tetromino.visualRow) * smoothFactor;
+    tetromino.visualCol += (tetromino.col - tetromino.visualCol) * smoothFactor;
+
+    // «Душа» — прозрачный контур точно на логической позиции (на сетке).
+    // Это целевая точка, куда летит тело.
+    context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    context.lineWidth = 1;
+    for (let row = 0; row < tetromino.matrix.length; row++) {
+      for (let col = 0; col < tetromino.matrix[row].length; col++) {
+        if (tetromino.matrix[row][col]) {
+          context.strokeRect(
+            (tetromino.col + col) * grid,
+            (tetromino.row + row - cameraY) * grid,
+            grid - 1, grid - 1
+          );
+        }
+      }
+    }
+
+    // «Тело» — плотные блоки, плавно догоняющие душу.
     context.fillStyle = colors[tetromino.name];
 
     for (let row = 0; row < tetromino.matrix.length; row++) {
@@ -346,7 +399,7 @@ function loop() {
         if (tetromino.matrix[row][col]) {
 
           // на 1 px меньше grid — создаёт эффект сетки
-          context.fillRect((tetromino.col + col) * grid, (tetromino.row + row - cameraY) * grid, grid - 1, grid - 1);
+          context.fillRect((tetromino.visualCol + col) * grid, (tetromino.visualRow + row - cameraY) * grid, grid - 1, grid - 1);
         }
       }
     }
@@ -372,6 +425,12 @@ function rotatePiece() {
   const matrix = rotate(tetromino.matrix);
   if (isValidMove(matrix, tetromino.row, tetromino.col)) {
     tetromino.matrix = matrix;
+    // При повороте матрица меняется, а вместе с ней и bounding box фигуры:
+    // центр «прыгает» на клетку. Логические row/col остаются прежними, поэтому
+    // тело мгновенно перестраивается вокруг души, а не улетает догонять старую
+    // форму. Визуальные координаты синхронизируем, чтобы не было рывка.
+    tetromino.visualRow = tetromino.row;
+    tetromino.visualCol = tetromino.col;
   }
 }
 
