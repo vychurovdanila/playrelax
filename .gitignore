@@ -17,3 +17,9 @@ build/
 # Local env
 .env
 .env.local
+
+# Медиафайлы (видео и аудио не коммитим в Git)
+src/assets/
+assets/
+*.mp3
+*.mp4
