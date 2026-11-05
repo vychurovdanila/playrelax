@@ -921,10 +921,10 @@ if (btnUnmute) {
    ============================================================ */
 // --- ЛОГИКА КРОССФЕЙДА ---
 const videoUrls = [
-  'https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1',
-  'https://kinescope.io/embed/8zAsGmrzMbTPKZRbTfqj7S?autoplay=1&mute=1',
-  'https://kinescope.io/embed/doXEtFTSEQgmEqia53SpVw?autoplay=1&mute=1',
-  'https://kinescope.io/embed/ovoxefTvckdj5xKAxF15Lg?autoplay=1&mute=1'
+  'https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1&loop=1&controls=0',
+  'https://kinescope.io/embed/8zAsGmrzMbTPKZRbTfqj7S?autoplay=1&mute=1&loop=1&controls=0',
+  'https://kinescope.io/embed/doXEtFTSEQgmEqia53SpVw?autoplay=1&mute=1&loop=1&controls=0',
+  'https://kinescope.io/embed/ovoxefTvckdj5xKAxF15Lg?autoplay=1&mute=1&loop=1&controls=0'
 ];
 let currentVideoIndex = 0;
 let activeIframe = 1; // 1 или 2
