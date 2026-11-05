@@ -84,10 +84,16 @@ class AudioManager {
         throw new Error('манифест должен быть массивом имён файлов');
       }
 
-      // Оставляем только непустые строки и добавляем префикс папки.
+      // Оставляем только непустые строки.
+      // Путь формируем так: абсолютные URL (http/https) используем как есть —
+      // манифест может указывать на внешнее хранилище (Vercel Blob).
+      // Локальные имена файлов получают префикс папки с аудио.
       this.tracks = list
         .filter((name) => typeof name === 'string' && name.trim() !== '')
-        .map((name) => AUDIO_DIR + name.trim());
+        .map((name) => {
+          const track = name.trim();
+          return track.startsWith('http') ? track : (AUDIO_DIR + track);
+        });
 
       // Сохранённый индекс мог указывать за пределы нового списка.
       if (this.currentIndex >= this.tracks.length) {
