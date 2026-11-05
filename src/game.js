@@ -23,6 +23,10 @@ const ROWS = 200;
 const COLS = 10;
 const VISIBLE_ROWS = 20;
 let cameraY = 20; // камера показывает ряды с 20 по 39
+// Визуальная (отрисовываемая) позиция камеры. Логика (коллизии, спавн,
+// сдвиги стакана) работает с cameraY мгновенно, а отрисовка плавно догоняет
+// её по экспоненте. Вверх и вниз — одинаково.
+let visualCameraY = cameraY; // Визуальная позиция
 let globalFallOffset = 0;    // Визуальный сдвиг «подвешенных» блоков при падении
 let globalFallVelocity = 0;  // Скорость падения
 let fallThresholdRow = 0;    // Ниже этой строки (вкл.) блоки не падают после съедания линий
@@ -324,6 +328,7 @@ function placeTetromino() {
         playfield.pop();
       }
       cameraY += SHIFT;
+      visualCameraY += SHIFT; // Телепортируем визуальную камеру вместе с логической
       if (tetromino) {
         tetromino.row += SHIFT;
         // Сдвиг камеры — телепорт логики, а не падение. Визуальную координату
@@ -340,6 +345,7 @@ function placeTetromino() {
         playfield.shift();
       }
       cameraY -= SHIFT;
+      visualCameraY -= SHIFT; // Телепортируем визуальную камеру вместе с логической
       if (tetromino) {
         tetromino.row -= SHIFT;
         // Симметрично верхнему сдвигу: камера — телепорт, тело едет вместе.
@@ -361,9 +367,27 @@ function loop() {
   // крутиться, поэтому снятие паузы мгновенно возвращает игру в работу.
   if (isPaused) return;
 
+  // ФИЗИКА КАМЕРЫ (Экспоненциальное погружение/всплытие)
+  const diffCam = cameraY - visualCameraY;
+
+  if (Math.abs(diffCam) > 0.05) {
+    // Экспоненциальный шаг: чем больше разрыв (высота столба), тем быстрее старт
+    let step = diffCam * 0.15;
+
+    // ЖЕСТКИЙ ЛИМИТ МАКСИМАЛЬНОЙ СКОРОСТИ (чтобы не проиграть)
+    const MAX_SPEED = 1.5; // Максимум 1.5 ряда за кадр
+    if (step > MAX_SPEED) step = MAX_SPEED;
+    if (step < -MAX_SPEED) step = -MAX_SPEED;
+
+    visualCameraY += step;
+  } else {
+    // Прилипаем к цели, если почти доехали
+    visualCameraY = cameraY;
+  }
+
   // Рисуем игровое поле (только видимый диапазон камеры).
   for (let r = 0; r < ROWS; r++) {
-    const screenRow = r - cameraY;
+    const screenRow = r - visualCameraY;
     if (screenRow < 0 || screenRow >= VISIBLE_ROWS) continue;
 
     for (let col = 0; col < COLS; col++) {
@@ -510,7 +534,7 @@ function loop() {
         if (tetromino.matrix[row][col]) {
           context.strokeRect(
             (tetromino.col + col) * grid,
-            (tetromino.row + row - cameraY) * grid,
+            (tetromino.row + row - visualCameraY) * grid,
             grid - 1, grid - 1
           );
         }
@@ -525,9 +549,9 @@ function loop() {
     const pieceWidth = tetromino.matrix[0].length;
     const pieceHeight = tetromino.matrix.length;
 
-    // Вычисляем центр фигуры для вращения (вычитаем cameraY для Y)
+    // Вычисляем центр фигуры для вращения (вычитаем visualCameraY для Y)
     const centerX = (tetromino.visualCol + pieceWidth / 2) * grid;
-    const centerY = (tetromino.visualRow + pieceHeight / 2 - cameraY) * grid;
+    const centerY = (tetromino.visualRow + pieceHeight / 2 - visualCameraY) * grid;
 
     context.translate(centerX, centerY); // Переносим начало координат в центр фигуры
     context.rotate(tetromino.visualRot); // Вращаем холст
