@@ -858,15 +858,6 @@ document.addEventListener('DOMContentLoaded', () => {
       gameCanvas.style.pointerEvents = 'auto';
       
       // 3. Запускаем звук: случайный порядок треков + воспроизведение.
-      // Принудительная разблокировка аудио на мобильных (iOS/Android):
-      // после жеста пользователя контекст может быть в 'suspended' —
-      // без resume() play() молча не запустится.
-      // Это единственная точка старта музыки: авто-запуск по первому тапу
-      // по документу убран намеренно — он перехватывал касание и ломал
-      // нормальный запуск по кнопке.
-      if (window.Howler && Howler.ctx && Howler.ctx.state === 'suspended') {
-        Howler.ctx.resume();
-      }
       startMusic(window.audioManager);
     });
   }
