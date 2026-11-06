@@ -8,12 +8,17 @@
 //
 // Модуль экспортирует глобальный объект `Particles` (скрипт подключается
 // через <script> перед game.js, поэтому никаких import/export нет).
+//
+// ВАЖНО: присваиваем именно в window.Particles, а НЕ `const Particles = ...`.
+// `const` на верхнем уровне классического скрипта создаёт лишь лексическую
+// привязку в глобальной области, но НЕ свойство window — поэтому проверки
+// вида `if (window.Particles)` всегда были ложны, и частицы не рисовались.
 
-const Particles = (function () {
+window.Particles = (function () {
   'use strict';
 
   // --- Настройки эффекта (правь тут) ---
-  const MAX_PARTICLES = 500;   // Жёсткий потолок: защита от перегрузки памяти
+  const MAX_PARTICLES = 1000;   // Жёсткий потолок: защита от перегрузки памяти
   const PER_CELL_CHANCE = 0.20; // Вероятность испустить частицу из клетки за кадр
   const LIFE_DECAY_MIN = 0.008; // Минимальная скорость затухания (дольше живёт)
   const LIFE_DECAY_MAX = 0.002; // Максимальная скорость затухания (быстрее гаснет)
@@ -117,6 +122,29 @@ const Particles = (function () {
     ctx.restore();
   }
 
+  // Взрыв одного блока (для цепной реакции при съедании линий).
+  // Разлетается веером на 360 градусов, скорость и размер — случайные,
+  // гаснет быстро (decay 0.02–0.05), чтобы взрывы не забивали экран.
+  function spawnExplosion(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      if (particles.length >= MAX_PARTICLES) break;
+
+      const p = acquire();
+      p.x = x;
+      p.y = y;
+      // Разлет веером на 360 градусов
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 3 + Math.random() * 6; // Разная скорость разлета
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed;
+      p.life = 8.5 + Math.random() * 2.5; // Живут дольше, чем шлейф
+      p.decay = 0.1 + Math.random() * 0.03; // Быстро гаснут
+      p.size = 0.2 + Math.random() * 0.23; // Разный размер
+      p.color = color;
+      particles.push(p);
+    }
+  }
+
   // Полная очистка (например, при смене мира / перезапуске).
   function clear() {
     for (let i = 0; i < particles.length; i++) release(particles[i]);
@@ -130,6 +158,7 @@ const Particles = (function () {
 
   return {
     spawnFromPiece: spawnFromPiece,
+    spawnExplosion: spawnExplosion, // Цепная реакция при съедании линий
     update: update,
     clear: clear,
     count: count

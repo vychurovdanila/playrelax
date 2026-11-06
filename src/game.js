@@ -30,6 +30,9 @@ let visualCameraY = cameraY; // Визуальная позиция
 let globalFallOffset = 0;    // Визуальный сдвиг «подвешенных» блоков при падении
 let globalFallVelocity = 0;  // Скорость падения
 let fallThresholdRow = 0;    // Ниже этой строки (вкл.) блоки не падают после съедания линий
+// Таймеры отложенных взрывов блоков (цепная реакция). Храним, чтобы при
+// сбросе/смене партии отменить ещё не сработавшие вызовы спавна.
+let explosionTimers = [];
 const playfield = [];
 
 /* ============================================================
@@ -121,7 +124,9 @@ let isPaused = false;
 /* ============================================================
    Частицы вынесены в отдельный модуль src/particles.js
    (подключён в index.html перед game.js). Здесь только вызовы:
-   Particles.spawnFromPiece(...) — эмиссия, Particles.update(...) — отрисовка.
+   Particles.spawnFromPiece(...) — шлейф от фигуры (эмиссия),
+   Particles.spawnExplosion(...) — цепной взрыв блоков при съедании линий,
+   Particles.update(...) — физика и отрисовка всех частиц.
    ============================================================ */
 
 /* ============================================================
@@ -250,6 +255,33 @@ function placeTetromino() {
   // Если что-то съели — перестраиваем массив: сохранённые строки снизу,
   // пустые сверху (unshift), длина стакана (ROWS) сохраняется.
   if (linesCleared > 0) {
+    // --- ЦЕПНОЙ ВЗРЫВ БЛОКОВ ---
+    // Координаты считаем ДО сдвига массива: блоки должны взорваться на тех
+    // экранных позициях, где игрок их видел (потом playfield перестраивается
+    // и ряд уезжает вверх, а визуальное падение догоняет через globalFallOffset).
+    // setTimeout даёт «волну» слева-направо и сверху-вниз (15 мс на блок),
+    // в колбэке — только вызов спавна, тяжёлых вычислений нет.
+    // Старые недоигравшие таймеры сбрасываем, чтобы не копились при
+    // нескольких подряд съеденных линиях.
+    for (let i = 0; i < explosionTimers.length; i++) clearTimeout(explosionTimers[i]);
+    const explodeTimers = [];
+    let delayIndex = 0;
+    for (let row = 0; row < ROWS; row++) {
+      if (playfield[row].every(cell => !!cell)) {
+        for (let col = 0; col < COLS; col++) {
+          const screenX = col * grid + grid / 2;
+          const screenY = (row - visualCameraY) * grid + grid / 2;
+          const color = colors[playfield[row][col]] || 'white';
+
+          explodeTimers.push(setTimeout(() => {
+            Particles.spawnExplosion(screenX, screenY, color, 8);
+          }, delayIndex * 15)); // 15 мс задержка между блоками
+          delayIndex++;
+        }
+      }
+    }
+    explosionTimers = explodeTimers;
+
     for (let i = 0; i < linesCleared; i++) {
       rowsToKeep.unshift(new Array(COLS).fill(0));
     }
@@ -432,6 +464,9 @@ function loop() {
     // --- ОБНОВЛЕНИЕ И ОТРИСОВКА ЧАСТИЦ ---
     // Вся логика (физика, затухание, пул объектов, режим свечения) внутри
     // модуля src/particles.js — здесь только вызов на один кадр.
+    // Вызывается БЕЗУСЛОВНО каждый кадр: модуль гарантированно существует,
+    // так как particles.js подключён в index.html перед game.js и пишет
+    // себя в window.Particles.
     Particles.update(context);
 
   // Рисуем активную фигуру.
@@ -1172,7 +1207,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 500);
       
       // 2. Показываем тетрис
-      gameCanvas.style.opacity = '0.70';
+      // 0.65 — фигуры заметно плотнее (0.70 → 0.55 → 0.35 → 0.65),
+      // подобранное значение: сливаются с фоном, но остаются читаемыми.
+      // Значение продублировано в src/styles.css (canvas — стартовое состояние 0).
+      gameCanvas.style.opacity = '0.65';
       gameCanvas.style.pointerEvents = 'auto';
       
       // 3. Запускаем звук: случайный порядок треков + воспроизведение.
