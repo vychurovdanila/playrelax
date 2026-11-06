@@ -18,15 +18,21 @@ window.Particles = (function () {
   'use strict';
 
   // --- Настройки эффекта (правь тут) ---
-  const MAX_PARTICLES = 1000;   // Жёсткий потолок: защита от перегрузки памяти
-  const PER_CELL_CHANCE = 0.20; // Вероятность испустить частицу из клетки за кадр
-  const LIFE_DECAY_MIN = 0.008; // Минимальная скорость затухания (дольше живёт)
-  const LIFE_DECAY_MAX = 0.002; // Максимальная скорость затухания (быстрее гаснет)
-  const SIZE_MIN = 0.4;         // Минимальный радиус частицы
-  const SIZE_MAX = 2.4;         // Максимальный радиус частицы
-  const SPREAD = 1.1;           // Разлёт в стороны (px/кадр)
+  const MAX_PARTICLES = 3000;   // Жёсткий потолок: защита от перегрузки памяти
+                                // (с запасом: 40 блоков × ~14 частиц на 4 линии)
+  const PER_CELL_CHANCE = 0.13; // Шлейф будет гуще
+  const LIFE_DECAY_MIN = 0.0035; // Дольше живут
+  const LIFE_DECAY_MAX = 0.0012; // Еще дольше живут
+  const SIZE_MIN = 0.3;         // Минимальный радиус частицы
+  const SIZE_MAX = 2.6;         // Максимальный радиус частицы
+  const SPREAD = 0.7;           // Чуть меньше разлет
   const RISE = -0.27;           // Легкий подъем вверх (как дым/искры)
-  const DRAG = 0.94;           // Вязкость: частица постепенно тормозится
+  const DRAG = 0.97;            // Медленнее тормозят (дольше висят в воздухе)
+
+  // Быстрое и медленное затухание (в исходных константах порядок может быть
+  // «перевёрнут», поэтому нормализуем: сразу получаем [медленное, быстрое]).
+  const DECAY_FAST = Math.max(LIFE_DECAY_MIN, LIFE_DECAY_MAX); // быстрее гаснет
+  const DECAY_SLOW = Math.min(LIFE_DECAY_MIN, LIFE_DECAY_MAX); // дольше живёт
 
   // Массив живых частиц. Переиспользуем объекты через пул, чтобы
   // сборщик мусора не дёргался на каждой частице.
@@ -54,7 +60,7 @@ window.Particles = (function () {
     p.vx = (Math.random() - 0.5) * 2 * SPREAD; // Разлет в стороны
     p.vy = (Math.random() - 0.5) * 2 * SPREAD + RISE; // Легкий подъем вверх
     p.life = 1.0; // Жизнь от 1 до 0
-    p.decay = LIFE_DECAY_MIN + Math.random() * (LIFE_DECAY_MAX - LIFE_DECAY_MIN);
+    p.decay = DECAY_SLOW + Math.random() * (DECAY_FAST - DECAY_SLOW);
     p.size = SIZE_MIN + Math.random() * (SIZE_MAX - SIZE_MIN); // Разный размер
     p.color = color;
 
@@ -138,7 +144,7 @@ window.Particles = (function () {
       p.vx = Math.cos(angle) * speed;
       p.vy = Math.sin(angle) * speed;
       p.life = 8.5 + Math.random() * 2.5; // Живут дольше, чем шлейф
-      p.decay = 0.1 + Math.random() * 0.03; // Быстро гаснут
+      p.decay = 0.01 + Math.random() * 0.015; // Взрывные частицы тоже живут дольше
       p.size = 0.2 + Math.random() * 0.23; // Разный размер
       p.color = color;
       particles.push(p);

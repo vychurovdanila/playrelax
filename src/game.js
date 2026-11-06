@@ -22,6 +22,9 @@ const tetrominoSequence = [];
 const ROWS = 200;
 const COLS = 10;
 const VISIBLE_ROWS = 20;
+// Сколько частиц рождает взрыв одного блока. При сборке 4 рядов сразу
+// это 40 блоков, поэтому значение держим заметным — иначе «вспышка» теряется.
+const EXPLOSION_PARTICLES = 14;
 let cameraY = 20; // камера показывает ряды с 20 по 39
 // Визуальная (отрисовываемая) позиция камеры. Логика (коллизии, спавн,
 // сдвиги стакана) работает с cameraY мгновенно, а отрисовка плавно догоняет
@@ -30,9 +33,24 @@ let visualCameraY = cameraY; // Визуальная позиция
 let globalFallOffset = 0;    // Визуальный сдвиг «подвешенных» блоков при падении
 let globalFallVelocity = 0;  // Скорость падения
 let fallThresholdRow = 0;    // Ниже этой строки (вкл.) блоки не падают после съедания линий
-// Таймеры отложенных взрывов блоков (цепная реакция). Храним, чтобы при
-// сбросе/смене партии отменить ещё не сработавшие вызовы спавна.
-let explosionTimers = [];
+// Очередь отложенных взрывов блоков (цепная реакция). Работает по кадрам:
+// в placeTetromino() блоки только регистрируются с временем срабатывания,
+// а спавн выполняется в loop(), когда наступает время. Так вся логика
+// идёт в одном игровом цикле, без setTimeout и без рассинхрона с rAF.
+let pendingExplosions = [];
+
+// Отложенная перестройка стакана. Пока «горит» цепная реакция, съеденные
+// ряды ВИЗУАЛЬНО ещё стоят на месте (иначе блоки исчезают в тот же кадр и
+// задержки не видно вообще). Как только очередь взрывов опустеет, loop()
+// применяет это описание: ряды убираются, пустые вставляются сверху и
+// запускается падение висящих блоков.
+// null — перестройки нет.
+let pendingClear = null;
+
+// Идёт разбор съеденных линий (горит цепная реакция). Пока true — управление
+// фигурой игнорируется, потому что активной фигуры нет: она появится после
+// применения pendingClear.
+let isResolving = false;
 const playfield = [];
 
 /* ============================================================
@@ -255,52 +273,80 @@ function placeTetromino() {
   // Если что-то съели — перестраиваем массив: сохранённые строки снизу,
   // пустые сверху (unshift), длина стакана (ROWS) сохраняется.
   if (linesCleared > 0) {
-    // --- ЦЕПНОЙ ВЗРЫВ БЛОКОВ ---
+    // --- ЦЕПНОЙ ВЗРЫВ БЛОКОВ (регистрация очереди) ---
     // Координаты считаем ДО сдвига массива: блоки должны взорваться на тех
-    // экранных позициях, где игрок их видел (потом playfield перестраивается
-    // и ряд уезжает вверх, а визуальное падение догоняет через globalFallOffset).
-    // setTimeout даёт «волну» слева-направо и сверху-вниз (15 мс на блок),
-    // в колбэке — только вызов спавна, тяжёлых вычислений нет.
-    // Старые недоигравшие таймеры сбрасываем, чтобы не копились при
-    // нескольких подряд съеденных линиях.
-    for (let i = 0; i < explosionTimers.length; i++) clearTimeout(explosionTimers[i]);
-    const explodeTimers = [];
-    let delayIndex = 0;
-    for (let row = 0; row < ROWS; row++) {
-      if (playfield[row].every(cell => !!cell)) {
-        for (let col = 0; col < COLS; col++) {
-          const screenX = col * grid + grid / 2;
-          const screenY = (row - visualCameraY) * grid + grid / 2;
-          const color = colors[playfield[row][col]] || 'white';
+    // экранных позициях, где игрок их видел. Перестройку стакана НЕ делаем
+    // здесь — она откладывается в pendingClear и выполнится в loop(), когда
+    // волна догорит (иначе ряды уезжают в тот же кадр и задержки не видно).
+    // Смещение берём по visualCameraY — именно по нему рисуется канвас,
+    // поэтому взрывы совпадают с картинкой на экране.
+    //
+    // Волна идёт ГОРИЗОНТАЛЬНО от замыкающей клетки — той клетки в ряду,
+    // которую достроила только что поставленная фигура (она и собрала линию).
+    // Это самая правая колонка фигуры. От anchor волна расходится В ОБЕ
+    // СТОРОНЫ: задержка пропорциональна расстоянию по горизонтали.
+    // ПЛЮС вертикальный каскад: каждая следующая съеденная строка стартует
+    // со сдвигом, поэтому 4 ряда подряд горят как настоящая цепочка,
+    // а не все одновременно.
+    // setTimeout не используем: вместо него время срабатывания
+    // (performance.now() + задержка) и покадровый разбор в loop().
+    pendingExplosions = []; // Очищаем старую очередь
 
-          explodeTimers.push(setTimeout(() => {
-            Particles.spawnExplosion(screenX, screenY, color, 8);
-          }, delayIndex * 15)); // 15 мс задержка между блоками
-          delayIndex++;
+    // Колонка «замыкающей» клетки: самая правая занятая колонка фигуры.
+    let anchorCol = tetromino.col;
+    for (let col = 0; col < tetromino.matrix[0].length; col++) {
+      for (let row = 0; row < tetromino.matrix.length; row++) {
+        if (tetromino.matrix[row][col] && tetromino.col + col > anchorCol) {
+          anchorCol = tetromino.col + col;
         }
       }
     }
-    explosionTimers = explodeTimers;
+    if (anchorCol < 0) anchorCol = 0;
+    if (anchorCol > COLS - 1) anchorCol = COLS - 1;
 
-    for (let i = 0; i < linesCleared; i++) {
-      rowsToKeep.unshift(new Array(COLS).fill(0));
+    // Шаг волны по горизонтали (мс на одну клетку в сторону от anchor).
+    // По вертикали задержки НЕТ: все съедаемые ряды горят одновременно,
+    // волна расходится только влево/вправо от замыкающей клетки.
+    const STEP_X = 15;
+
+    // Съеденные строки — порядок не важен, время у всех одинаковое.
+    const clearedRows = [];
+    for (let row = ROWS - 1; row >= 0; row--) {
+      if (playfield[row].every(cell => !!cell)) clearedRows.push(row);
     }
 
-    // Копируем результат обратно в playfield (массив по const — мутируем по индексу).
-    for (let row = 0; row < ROWS; row++) {
-      playfield[row] = rowsToKeep[row];
+    const now = performance.now();
+    for (let ci = 0; ci < clearedRows.length; ci++) {
+      const row = clearedRows[ci];
+      for (let col = 0; col < COLS; col++) {
+        const screenX = col * grid + grid / 2;
+        const screenY = (row - visualCameraY) * grid + grid / 2;
+
+        // Только горизонтальное расстояние до anchor: у всех рядов одна
+        // и та же задержка, поэтому цепная реакция идёт по всем сразу.
+        const delay = Math.abs(col - anchorCol) * STEP_X;
+
+        pendingExplosions.push({
+          x: screenX,
+          y: screenY,
+          color: colors[playfield[row][col]] || 'white',
+          row: row,
+          col: col,
+          timeToExplode: now + delay
+        });
+      }
     }
 
-    // Массив сдвинулся мгновенно — запускаем визуальное падение ТОЛЬКО тех
-    // блоков, которые оказались выше съеденных линий (над образовавшейся
-    // пустотой). Блоки ниже съеденных уже стоят на своих местах.
-    //
-    // В новых координатах порог — lastClearedRow + 1: строки с индексом >= него
-    // не меняли позицию (лежат ниже съеденных), а с индексом < него «висят»
-    // на linesCleared строк выше нужного и должны упасть.
-    globalFallOffset = linesCleared * grid; // Сдвигаем визуально на высоту съеденных линий
-    globalFallVelocity = 0;                 // Сбрасываем скорость
-    fallThresholdRow = lastClearedRow + 1;  // ниже этой строки (вкл.) блоки не падают
+    // Откладываем перестройку: применится в loop(), когда очередь опустеет.
+    pendingClear = {
+      linesCleared: linesCleared,
+      lastClearedRow: lastClearedRow,
+      // Момент, когда взорвался последний блок этой волны.
+      doneAt: now + (COLS - 1) * STEP_X,
+      // Уже взорвавшиеся клетки: ключ = row * COLS + col. Отрисовка пропускает
+      // их, поэтому ряды «съедаются» по мере волны, а не исчезают все сразу.
+      exploded: new Set()
+    };
   }
 
     // 1. Находим верхний и нижний блоки
@@ -391,7 +437,14 @@ function placeTetromino() {
       }
     }
 
-  tetromino = getNextTetromino();
+  // Пока волна горит, новую фигуру НЕ выдаём: иначе игрок поставит её поверх
+  // ещё не удалённых рядов. Фигура появится в loop(), когда pendingClear
+  // применится. Остальные шаги (камера, сдвиги стакана) безопасны и выполняются.
+  if (pendingClear) {
+    isResolving = true;
+  } else {
+    tetromino = getNextTetromino();
+  }
 }
 
 // Игровой цикл.
@@ -430,6 +483,10 @@ function loop() {
 
     for (let col = 0; col < COLS; col++) {
       if (playfield[r][col]) {
+        // Блок уже взорвался в цепной реакции — не рисуем его. Ряд осыпается
+        // по мере волны, а не исчезает целиком в конце.
+        if (pendingClear && pendingClear.exploded.has(r * COLS + col)) continue;
+
         const name = playfield[r][col];
         context.fillStyle = colors[name];
 
@@ -460,6 +517,54 @@ function loop() {
       }
     }
   }
+
+    // Обработка цепной реакции: взрываем по одному блоку, когда наступает
+    // его время (performance.now() >= timeToExplode). Идём с конца массива,
+    // чтобы splice не сбивал индексы. Без setTimeout — всё в такт rAF.
+    if (pendingExplosions.length > 0) {
+      const now = performance.now();
+      for (let i = pendingExplosions.length - 1; i >= 0; i--) {
+        const exp = pendingExplosions[i];
+        if (now >= exp.timeToExplode) {
+          Particles.spawnExplosion(exp.x, exp.y, exp.color, EXPLOSION_PARTICLES);
+          // Отмечаем клетку взорванной — отрисовка перестанет её рисовать,
+          // и ряд визуально «осыпается» вслед за волной.
+          if (pendingClear) pendingClear.exploded.add(exp.row * COLS + exp.col);
+          pendingExplosions.splice(i, 1);
+        }
+      }
+    }
+
+    // Перестройка стакана выполняется ТОЛЬКО когда волна догорела, чтобы
+    // игрок успел увидеть всю цепную реакцию, а не мгновенное исчезновение.
+    if (pendingClear && pendingExplosions.length === 0) {
+      // Пересобираем playfield: неполные строки вниз, пустые сверху.
+      const rowsToKeep = [];
+      for (let row = 0; row < ROWS; row++) {
+        if (!playfield[row].every(cell => !!cell)) rowsToKeep.push(playfield[row]);
+      }
+      for (let i = 0; i < pendingClear.linesCleared; i++) {
+        rowsToKeep.unshift(new Array(COLS).fill(0));
+      }
+      for (let row = 0; row < ROWS; row++) {
+        playfield[row] = rowsToKeep[row];
+      }
+
+      // Теперь ряды реально удалены — запускаем падение висящих блоков.
+      // В новых координатах порог — lastClearedRow + 1: строки с индексом
+      // >= него не меняли позицию, а с индексом < него «висят» на
+      // linesCleared строк выше нужного и должны упасть.
+      globalFallOffset = pendingClear.linesCleared * grid;
+      globalFallVelocity = 0;
+      fallThresholdRow = pendingClear.lastClearedRow + 1;
+
+      pendingClear = null;
+
+      // Волна догорела и ряды убраны — теперь выдаём новую фигуру.
+      // Здесь же снимаем блокировку управления.
+      isResolving = false;
+      tetromino = getNextTetromino();
+    }
 
     // --- ОБНОВЛЕНИЕ И ОТРИСОВКА ЧАСТИЦ ---
     // Вся логика (физика, затухание, пул объектов, режим свечения) внутри
@@ -646,7 +751,7 @@ function loop() {
 
 // Сдвиг фигуры по горизонтали. dx = -1 (влево) / +1 (вправо).
 function moveHorizontal(dx) {
-  if (!tetromino) return;
+  if (!tetromino || isResolving) return;
   const col = tetromino.col + dx;
   if (isValidMove(tetromino.matrix, tetromino.row, col)) {
     tetromino.col = col;
@@ -655,7 +760,7 @@ function moveHorizontal(dx) {
 
 // Поворот активной фигуры.
 function rotatePiece() {
-  if (!tetromino) return;
+  if (!tetromino || isResolving) return;
   // rotate() вращает матрицу по часовой стрелке. Canvas rotate(+a) — тоже
   // по часовой (ось Y вниз), поэтому знаки совпадают.
   const rotated = rotate(tetromino.matrix);
@@ -681,7 +786,7 @@ function rotatePiece() {
 
 // Сдвиг фигуры вниз на 1 клетку; если упирается — ставим на поле.
 function moveDown() {
-  if (!tetromino) return;
+  if (!tetromino || isResolving) return;
   const row = tetromino.row + 1;
 
   if (!isValidMove(tetromino.matrix, row, tetromino.col)) {
