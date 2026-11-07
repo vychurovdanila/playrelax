@@ -25,6 +25,15 @@ const VISIBLE_ROWS = 20;
 // Сколько частиц рождает взрыв одного блока. При сборке 4 рядов сразу
 // это 40 блоков, поэтому значение держим заметным — иначе «вспышка» теряется.
 const EXPLOSION_PARTICLES = 14;
+const IMPACT_PARTICLES = 6; // Количество частиц на 1 кубик
+// Порог «жёсткого» приземления: сколько строк фигура прошла за ОДИН кадр.
+// Обычный тик логики даёт ровно 1 строку за постановку — это мягкая посадка,
+// искр быть не должно. Жёсткая посадка — от 2 строк за кадр и больше
+// (быстрое падение / свайп вниз / серия нажатий «вниз»).
+const IMPACT_MIN_SPEED = 1.5;
+// Сколько частиц добавлять на каждую пройденную «быстрым» падением строку
+// сверх порога — чем дальше упала фигура, тем сильнее выбивает искры.
+const IMPACT_PARTICLES_PER_ROW = 4;
 let cameraY = 20; // камера показывает ряды с 20 по 39
 // Визуальная (отрисовываемая) позиция камеры. Логика (коллизии, спавн,
 // сдвиги стакана) работает с cameraY мгновенно, а отрисовка плавно догоняет
@@ -199,7 +208,12 @@ function getNextTetromino() {
     visualCol: col,
     visualRot: 0, // Ошибка угла отрисовки относительно матрицы (гаснет к 0)
     targetRot: 0, // Целевой угол визуального доворота (всегда 0 — «догнать форму»)
-    velRot: 0     // Скорость визуального вращения (инерция)
+    velRot: 0,    // Скорость визуального вращения (инерция)
+    // Логическая строка на прошлом кадре. По ней считается скорость посадки
+    // (createLandingImpact): разница за кадр > IMPACT_MIN_SPEED = жёсткое
+    // приземление. Визуальные координаты для этого не подходят — тело плавно
+    // догоняет душу, и разрыв к моменту постановки почти нулевой.
+    prevLogicRow: row
   };
 }
 
@@ -235,8 +249,69 @@ function isValidMove(matrix, cellRow, cellCol) {
   return true;
 }
 
+// Взрыв частиц при жёстком приземлении.
+//
+// Искры рождаются ТОЛЬКО в точках стыка падающей фигуры с башней (или с полом):
+// для каждой нижней клетки фигуры проверяется ровно одна строка под ней.
+// Если там блок башни или пол — это и есть место соприкосновения, там искры.
+// Если под клеткой пусто — стыка нет, искр нет (никакого прощупывания шахты
+// вниз: иначе частицы рождались бы в проекции фигуры, далеко под ней).
+//
+// Y берётся по ЛОГИЧЕСКОЙ строке контакта: это физическая плоскость удара
+// (визуальное тело в этот момент ещё догоняет логику).
+//
+// speed — насколько «жёстко» села фигура (строки за последний кадр).
+function createLandingImpact(piece, speed) {
+  const fallSpeed = speed || 0;
+  if (fallSpeed <= IMPACT_MIN_SPEED) return; // Мягкая посадка — искр нет
+
+  const matrix = piece.matrix;
+
+  // Чем быстрее упала фигура, тем больше искр на каждый кубик нижней грани.
+  const extra = Math.min(3, Math.floor(fallSpeed - IMPACT_MIN_SPEED));
+  const perCube = IMPACT_PARTICLES + extra * IMPACT_PARTICLES_PER_ROW;
+
+  // Жёсткий пол: ниже этой строки фигура не опускается (см. isValidMove).
+  const floorRow = cameraY + VISIBLE_ROWS;
+
+  const color = colors[piece.name] || 'white';
+
+  for (let row = 0; row < matrix.length; row++) {
+    for (let col = 0; col < matrix[row].length; col++) {
+      if (!matrix[row][col]) continue;
+
+      // Это нижняя грань? (Снизу либо пусто, либо конец матрицы)
+      const isBottomEdge = (row === matrix.length - 1 || !matrix[row + 1][col]);
+      if (!isBottomEdge) continue;
+
+      const boardCol = piece.col + col;
+      // Строка непосредственно под этим кубиком — единственное место,
+      // где возможен стык именно этой клетки.
+      const contactRow = piece.row + row + 1;
+
+      const hitsTower = contactRow < floorRow && playfield[contactRow] &&
+                        playfield[contactRow][boardCol];
+      const hitsFloor = contactRow >= floorRow;
+
+      // Ни башни, ни пола под клеткой — соприкосновения нет.
+      if (!hitsTower && !hitsFloor) continue;
+
+      // Координаты стыка в экранной системе отрисовки: X — центр колонки,
+      // Y — граница между соприкасающимися горизонтальными поверхностями
+      // (низ нашего кубика = верх блока башни / пол).
+      const screenX = (boardCol + 0.5) * grid;
+      const screenY = (contactRow - visualCameraY) * grid;
+
+      Particles.spawnImpact(screenX, screenY, color, perCube);
+    }
+  }
+}
+
 // Кладём тетромино на игровое поле.
-function placeTetromino() {
+// fallSpeed — насколько быстро фигура села (строки за последний кадр).
+function placeTetromino(fallSpeed) {
+  createLandingImpact(tetromino, fallSpeed); // Искры от нижней грани при жёсткой посадке
+
   for (let row = 0; row < tetromino.matrix.length; row++) {
     for (let col = 0; col < tetromino.matrix[row].length; col++) {
       if (tetromino.matrix[row][col]) {
@@ -582,12 +657,18 @@ function loop() {
       tetromino.row++;
       count = 0;
 
-      // ставим фигуру, если во что-то упирается
+      // ставим фигуру, если во что-то упирается.
+      // Скорость посадки считаем по ЛОГИКЕ: сколько строк фигура прошла
+      // с предыдущего кадра (prevLogicRow). Визуальный разрыв row-visualRow
+      // для этого не годится — loop() подтягивает visualRow к row с зажимом,
+      // поэтому к моменту постановки разрыв почти всегда около нуля.
+      const passed = tetromino.row - (tetromino.prevLogicRow ?? tetromino.row);
       if (!isValidMove(tetromino.matrix, tetromino.row, tetromino.col)) {
         tetromino.row--;
-        placeTetromino();
+        placeTetromino(passed);
       }
     }
+    tetromino.prevLogicRow = tetromino.row;
 
     // ФИЗИКА: Плавное движение "тела" к "душе" (к логическим координатам).
     // Логика и коллизии остались мгновенными — догоняет только отрисовка.
@@ -790,13 +871,19 @@ function moveDown() {
   const row = tetromino.row + 1;
 
   if (!isValidMove(tetromino.matrix, row, tetromino.col)) {
-    // дальше вниз нельзя — фиксируем текущую позицию и ставим фигуру
+    // дальше вниз нельзя — фиксируем текущую позицию и ставим фигуру.
+    // Явное быстрое действие игрока (стрелка/свайп вниз) — это жёсткая
+    // посадка: передаём скорость заведомо выше IMPACT_MIN_SPEED, потому что
+    // тело к этому моменту уже догнало логику и разрыв был бы нулевым.
     tetromino.row = row - 1;
-    placeTetromino();
+    placeTetromino(IMPACT_MIN_SPEED + 1);
     return;
   }
 
   tetromino.row = row;
+  // Фигура сдвинулась логикой вручную — фиксируем базу для подсчёта
+  // пройденных за кадр строк (иначе тик посчитает ручной сдвиг как падение).
+  tetromino.prevLogicRow = row;
 }
 
 // --- Клавиатура (современный API: e.key) ---

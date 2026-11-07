@@ -145,7 +145,31 @@ window.Particles = (function () {
       p.vy = Math.sin(angle) * speed;
       p.life = 8.5 + Math.random() * 2.5; // Живут дольше, чем шлейф
       p.decay = 0.01 + Math.random() * 0.015; // Взрывные частицы тоже живут дольше
-      p.size = 0.2 + Math.random() * 0.23; // Разный размер
+      p.size = 0.18 + Math.random() * 0.18; // Разный размер
+      p.color = color;
+      particles.push(p);
+    }
+  }
+
+  // Взрыв при приземлении (частицы летят вверх и в стороны)
+  function spawnImpact(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      if (particles.length >= MAX_PARTICLES) break;
+
+      const p = acquire();
+      p.x = x;
+      p.y = y;
+      // Угол от 180 до 360 градусов (в Canvas Y идет вниз, значит вверх это минус)
+      const angle = Math.PI + Math.random() * Math.PI;
+      const speed = 1.5 + Math.random() * 3;
+
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed; // Летят вверх
+      p.life = 1.5 + Math.random() * 0.5; // Живут недолго
+      p.decay = 0.006 + Math.random() * 0.008; // Гаснут быстро, но заметно (≈35–80 кадров)
+      // Размер заметный: при рендере радиус = size * life, поэтому 2.2–4.2 даёт
+      // видимые искры 2–4 px в первый кадр (для сравнения: шлейф Size_MAX = 2.6).
+      p.size = 0.9 + Math.random() * 0.9;
       p.color = color;
       particles.push(p);
     }
@@ -165,6 +189,7 @@ window.Particles = (function () {
   return {
     spawnFromPiece: spawnFromPiece,
     spawnExplosion: spawnExplosion, // Цепная реакция при съедании линий
+    spawnImpact: spawnImpact,       // Взрыв частиц при жёстком приземлении фигуры
     update: update,
     clear: clear,
     count: count
