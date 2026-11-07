@@ -34,6 +34,46 @@ const IMPACT_MIN_SPEED = 1.5;
 // Сколько частиц добавлять на каждую пройденную «быстрым» падением строку
 // сверх порога — чем дальше упала фигура, тем сильнее выбивает искры.
 const IMPACT_PARTICLES_PER_ROW = 4;
+
+// --- Настройки ускорения при удержании «вниз» (можно менять) ---
+// currentDownDelay — текущая задержка между шагами вниз (мс). Стартуем с
+// DOWN_START_DELAY и постепенно уменьшаем её при каждом шаге: фигура сначала
+// едет плавно, затем всё быстрее. Меньше = быстрее старт.
+const DOWN_START_DELAY = 55;      // Начальная задержка (мс)
+let currentDownDelay = DOWN_START_DELAY; // Текущая задержка (мс)
+const DOWN_ACCELERATION = 2.2;      // Насколько уменьшать задержку за шаг (мс)
+const MIN_DOWN_DELAY = 25;        // Максимальная скорость (минимальная задержка, мс)
+
+// Сколько клеток фигура прошла вниз за текущее падение. Сбрасывается при
+// постановке фигуры. Нужен, чтобы искры при посадке появлялись только после
+// действительно долгого падения, а не на каждом шаге.
+let lastDropDistance = 0;         // Счётчик пройденных клеток
+const IMPACT_MIN_CELLS = 8;       // Сколько клеток нужно пролететь для искр
+
+// --- Нераспространение удержания «вниз» на следующую фигуру ---
+//
+// ЗАДАЧА: если игрок держит кнопку «вниз» (или долгий свайп вниз) и фигура от
+// этого падает и фиксируется, автоповтор НЕ должен «переехать» на следующую
+// появившуюся сверху фигуру. Пока игрок физически не отпустит ввод — новая
+// фигура стоит и не управляется.
+//
+// Почему токен, а не булев флаг: у автоповтора (рекурсивный setTimeout) есть
+// гонка — stopSingleSwipe() гасит таймаут, но «живой» step успевает завести
+// следующий. Поэтому каждое движение идёт со своим «поколением»
+// (swipeGeneration), а step самоаннулируется, если его поколение устарело.
+
+// Текущее поколение автоповтора. Инкремент — «все висящие step недействительны».
+let swipeGeneration = 0;
+
+// Ввод «вниз» физически удерживается прямо сейчас (палец на экране / клавиша
+// нажата). true только пока есть реальное удержание.
+let downHoldActive = false;
+
+// Управление новой фигурой заблокировано до НАСТОЯЩЕГО отпускания ввода.
+// Снимается исключительно событием touchend / keyup / свайпом вверх.
+// НИКОГДА не снимается таймером или появлением фигуры — иначе баг «иногда
+// срабатывает, иногда нет».
+let newPieceLock = false;
 let cameraY = 20; // камера показывает ряды с 20 по 39
 // Визуальная (отрисовываемая) позиция камеры. Логика (коллизии, спавн,
 // сдвиги стакана) работает с cameraY мгновенно, а отрисовка плавно догоняет
@@ -262,8 +302,19 @@ function isValidMove(matrix, cellRow, cellCol) {
 //
 // speed — насколько «жёстко» села фигура (строки за последний кадр).
 function createLandingImpact(piece, speed) {
+  // Искры — ТОЛЬКО если фигура реально пролетела IMPACT_MIN_CELLS клеток.
+  // Иначе (короткое падение, посадка после сдвига) счётчик просто обнуляется
+  // и частиц не появляется.
+  if (lastDropDistance < IMPACT_MIN_CELLS) {
+    lastDropDistance = 0;
+    return;
+  }
+
   const fallSpeed = speed || 0;
-  if (fallSpeed <= IMPACT_MIN_SPEED) return; // Мягкая посадка — искр нет
+  if (fallSpeed <= IMPACT_MIN_SPEED) {
+    lastDropDistance = 0; // Мягкая посадка — искр нет
+    return;
+  }
 
   const matrix = piece.matrix;
 
@@ -305,6 +356,8 @@ function createLandingImpact(piece, speed) {
       Particles.spawnImpact(screenX, screenY, color, perCube);
     }
   }
+
+  lastDropDistance = 0; // Сбрасываем счётчик после взрыва
 }
 
 // Кладём тетромино на игровое поле.
@@ -518,6 +571,18 @@ function placeTetromino(fallSpeed) {
   if (pendingClear) {
     isResolving = true;
   } else {
+    // Новая фигура сверху — управление начинается с нуля.
+    //  1) гасим автоповтор (свайп/зажатие) и инкрементируем поколение —
+    //     висящие step самоаннулируются, фигура не поедет сама;
+    //  2) если ввод «вниз» ещё физически удерживается — новая фигура ждёт
+    //     настоящего отпускания (newPieceLock);
+    //  3) СБРАСЫВАЕМ скорость падения: иначе унаследованные 15 мс «улетели» бы
+    //     на новую фигуру и следующие несколько валились бы с большой скоростью;
+    //  4) обнуляем счётчик падения — чужие клетки не пробег новой фигуры.
+    stopSingleSwipe();
+    newPieceLock = downHoldActive;
+    currentDownDelay = DOWN_START_DELAY;
+    lastDropDistance = 0;
     tetromino = getNextTetromino();
   }
 }
@@ -638,6 +703,13 @@ function loop() {
       // Волна догорела и ряды убраны — теперь выдаём новую фигуру.
       // Здесь же снимаем блокировку управления.
       isResolving = false;
+      // Новая фигура — то же правило, что и в placeTetromino: гасим автоповтор
+      // (с инкрементом поколения), сбрасываем скорость и счётчик падения,
+      // а если ввод «вниз» ещё удерживается — фигура ждёт отпускания.
+      stopSingleSwipe();
+      newPieceLock = downHoldActive;
+      currentDownDelay = DOWN_START_DELAY;
+      lastDropDistance = 0;
       tetromino = getNextTetromino();
     }
 
@@ -868,6 +940,10 @@ function rotatePiece() {
 // Сдвиг фигуры вниз на 1 клетку; если упирается — ставим на поле.
 function moveDown() {
   if (!tetromino || isResolving) return;
+  // Новая фигура ждёт НАСТОЯЩЕГО отпускания ввода: игрок всё ещё держит «вниз»
+  // (или палец на экране после свайпа), а сверху уже появилась свежая фигура.
+  // Блок снимается только touchend / keyup / свайпом вверх (см. newPieceLock).
+  if (newPieceLock) return;
   const row = tetromino.row + 1;
 
   if (!isValidMove(tetromino.matrix, row, tetromino.col)) {
@@ -881,6 +957,7 @@ function moveDown() {
   }
 
   tetromino.row = row;
+  lastDropDistance++; // Каждый шаг вниз приближает фигуру к «жёсткой» посадке
   // Фигура сдвинулась логикой вручную — фиксируем базу для подсчёта
   // пройденных за кадр строк (иначе тик посчитает ручной сдвиг как падение).
   tetromino.prevLogicRow = row;
@@ -919,9 +996,25 @@ document.addEventListener('keydown', function(e) {
     rotatePiece();
   }
 
-  // стрелка вниз (ускоренное падение)
+  // стрелка вниз — ускоренное падение с удержанием.
+  // Автоповтор браузера (e.repeat) даёт «зажатие»: пока клавиша нажата,
+  // фигура едет вниз и разгоняется.
   if (e.key === 'ArrowDown') {
+    // Пока ввод не отпущен, а наверху новая фигура — ждём keyup.
+    if (newPieceLock) return;
+    downHoldActive = true;   // клавиша физически нажата
     moveDown();
+    currentDownDelay = Math.max(MIN_DOWN_DELAY, currentDownDelay - DOWN_ACCELERATION);
+  }
+});
+
+// Отпускание клавиши «вниз» — единственное, что снимает блок новой фигуры.
+// Пока клавиша не отпущена, движение не «переезжает» на следующую фигуру.
+document.addEventListener('keyup', function(e) {
+  if (e.key === 'ArrowDown') {
+    downHoldActive = false;
+    newPieceLock = false;
+    currentDownDelay = DOWN_START_DELAY;
   }
 });
 
@@ -947,9 +1040,15 @@ let currentDirection = null;
 // Останавливаем автоповтор. Вызывается из touchend и из двухпальцевых
 // обработчиков: если второй палец коснулся во время одиночного перетаскивания,
 // висящий интервал продолжал бы двигать фигуру сам по себе.
+//
+// ВАЖНО: инкрементируем поколение — это аннулирует ВСЕ висящие step, даже тот,
+// что успел завести следующий таймаут уже после clearTimeout (гонка). Без этого
+// «мёртвый» step мог ожить и двигать фигуру без пальца — тот самый баг
+// «иногда срабатывает, иногда нет».
 function stopSingleSwipe() {
+  swipeGeneration++; // все текущие step недействительны
   if (moveInterval) {
-    clearInterval(moveInterval);
+    clearTimeout(moveInterval);
   }
   moveInterval = null;
   currentDirection = null;
@@ -963,6 +1062,13 @@ canvas.addEventListener('touchstart', function(e) {
   // Базовая точка для расчёта мгновенной смены направления в touchmove.
   lastTouchX = touch.clientX;
   lastTouchY = touch.clientY;
+
+  // Новое касание — новое удержание. Скорость падения снова стартовая, а блок
+  // новой фигуры снимаем: игрок ВРУЧНУЮ начинает новый жест, значит управление
+  // снова доступно (палец оторвался и коснулся заново = отпустил и нажал).
+  currentDownDelay = DOWN_START_DELAY;
+  downHoldActive = false;
+  newPieceLock = false;
 
   // Страховка от жеста, завершившегося без touchend (например, палец ушёл
   // за пределы окна): перед новым касанием гасим прошлый интервал.
@@ -998,11 +1104,26 @@ canvas.addEventListener('touchmove', function(e) {
   // Доминирующая ось среди последнего шага. Вниз — только положительное
   // смещение (движение пальцем вверх фигуру не поднимает).
   let direction = currentDirection;
+  let swipeUp = false; // палец явно пошёл вверх — это ОТПУСКАНИЕ удержания
   if (Math.abs(stepX) > Math.abs(stepY)) {
     if (stepX > 0) direction = 'right';
     else if (stepX < 0) direction = 'left';
   } else if (stepY > 0) {
     direction = 'down';
+  } else if (stepY < 0) {
+    // Вертикальный жест вверх: фигуру вверх не тянем, но это явный отказ от
+    // удержания «вниз» — снимаем блок новой фигуры, как при отпускании.
+    swipeUp = true;
+  }
+
+  if (swipeUp) {
+    // Свайп вверх = отпускание: ввод «вниз» больше не удерживается, новая
+    // фигура снова управляется.
+    downHoldActive = false;
+    newPieceLock = false;
+    currentDownDelay = DOWN_START_DELAY;
+    stopSingleSwipe();
+    return;
   }
 
   if (direction === null) return;
@@ -1010,6 +1131,12 @@ canvas.addEventListener('touchmove', function(e) {
   // Обновляем актуальное направление: интервал ниже читает его на каждом
   // тике, поэтому смена оси применяется сразу.
   currentDirection = direction;
+
+  // downHoldActive отражает ФАКТИЧЕСКОЕ удержание «вниз»: если палец ушёл в
+  // сторону, ввод «вниз» больше не удерживается. Обновляем ДО выхода ниже —
+  // иначе при уже идущем автоповторе смена направления не сбросила бы флаг,
+  // и moveDown поставил бы newPieceLock, хотя игрок уже не давит вниз.
+  downHoldActive = (currentDirection === 'down');
 
   // Движение уже идёт — направление обновлено выше, больше ничего не нужно.
   if (moveInterval) return;
@@ -1026,19 +1153,41 @@ canvas.addEventListener('touchmove', function(e) {
   }
 
   // Дальше — непрерывное движение, пока палец на экране.
-  moveInterval = setInterval(() => {
+  // Рекурсивный setTimeout вместо setInterval: задержку между шагами можно
+  // менять «на лету». При удержании «вниз» она уменьшается на
+  // DOWN_ACCELERATION за шаг — фигура плавно разгоняется до MIN_DOWN_DELAY.
+  //
+  // ПОКОЛЕНИЕ (myGen): stopSingleSwipe() и новый жест инкрементируют
+  // swipeGeneration. step, чьё поколение устарело, немедленно выходит и НЕ
+  // заводит новый таймаут — так «мёртвый» step не может ожить и двигать
+  // фигуру без пальца.
+  const myGen = swipeGeneration;
+  function step() {
+    if (myGen !== swipeGeneration) return; // поколение устарело — выходим навсегда
+    if (!currentDirection) return;
+
     if (currentDirection === 'left') {
       moveHorizontal(-1);
     } else if (currentDirection === 'right') {
       moveHorizontal(1);
     } else if (currentDirection === 'down') {
       moveDown();
+      // УСКОРЕНИЕ: уменьшаем задержку, но не ниже MIN_DOWN_DELAY.
+      currentDownDelay = Math.max(MIN_DOWN_DELAY, currentDownDelay - DOWN_ACCELERATION);
     }
-  }, 50);
+
+    moveInterval = setTimeout(step, currentDownDelay);
+  }
+  moveInterval = setTimeout(step, currentDownDelay);
 }, { passive: false });
 
 canvas.addEventListener('touchend', function(e) {
   e.preventDefault();
+
+  // Палец оторван — ввод «вниз» больше не удерживается. Только это событие
+  // (а не таймер и не появление фигуры) снимает блок новой фигуры.
+  downHoldActive = false;
+  newPieceLock = false;
 
   // Свайп был — фигурой уже управлял интервал (непрерывное движение),
   // отдельная обработка на отпускании не нужна.
@@ -1289,6 +1438,10 @@ document.addEventListener('touchstart', (e) => {
     threeFingerStartY = e.touches[0].clientY;
     threeFingerMoved = false;
     stopSingleSwipe(); // На всякий случай гасим одиночное движение
+    // Жест не для игры: удержание «вниз» завершено, блок новой фигуры снимаем,
+    // иначе игра «залипнет» и фигура зависнет до следующего touchend.
+    downHoldActive = false;
+    newPieceLock = false;
     e.stopImmediatePropagation();
     return;
   }
@@ -1299,6 +1452,9 @@ document.addEventListener('touchstart', (e) => {
     // Второй палец коснулся во время одиночного перетаскивания: гасим
     // автоповтор, иначе фигура продолжит ехать сама, пока палец на экране.
     stopSingleSwipe();
+    // Жест не для игры: удержание «вниз» завершено, блок снимаем.
+    downHoldActive = false;
+    newPieceLock = false;
     // Двухпальцевый жест — не для игры: гасим его ДО канваса.
     e.stopImmediatePropagation();
   } else {
