@@ -1268,6 +1268,7 @@ function stopSingleSwipe() {
 }
 
 canvas.addEventListener('touchstart', function(e) {
+  if (window.App && window.App.currentGame !== 'tetris') return;
   e.preventDefault();
   const touch = e.changedTouches[0];
   touchStartX = touch.clientX;
@@ -1289,6 +1290,7 @@ canvas.addEventListener('touchstart', function(e) {
 }, { passive: false });
 
 canvas.addEventListener('touchmove', function(e) {
+  if (window.App && window.App.currentGame !== 'tetris') return;
   // preventDefault — чтобы страница не скроллилась при свайпах
   e.preventDefault();
 
@@ -1395,6 +1397,7 @@ canvas.addEventListener('touchmove', function(e) {
 }, { passive: false });
 
 canvas.addEventListener('touchend', function(e) {
+  if (window.App && window.App.currentGame !== 'tetris') return;
   e.preventDefault();
 
   // Палец оторван — ввод «вниз» больше не удерживается. Только это событие
