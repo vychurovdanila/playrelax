@@ -1,0 +1,24 @@
+name: Deploy to Hosting
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./src/
+          server-dir: /public_html/  # <-- Измени этот путь, если твой хостинг использует другую папку (например, /www/ или /domains/playrelax.ru/public_html/)
+          dangerous-clean-slate: false
