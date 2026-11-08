@@ -229,6 +229,7 @@ window.Particles = (function () {
   }
 
   return {
+    spawnOne: spawnOne,             // Одиночная мелкая частица (шлейф в Тетрисе / drag в Match-3)
     spawnFromPiece: spawnFromPiece,
     spawnExplosion: spawnExplosion, // Цепная реакция при съедании линий
     spawnImpact: spawnImpact,       // Взрыв частиц при жёстком приземлении фигуры

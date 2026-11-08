@@ -81,14 +81,15 @@ window.Match3Game = {
     if (!this.board || this.board.length === 0) return;
 
     // Если фигурка в руке — сыпем искры (шлейф под пальцем)
-    if (this.draggedTile && window.Particles && window.Particles.spawnExplosion) {
+    if (this.draggedTile && window.Particles && window.Particles.spawnOne) {
       const rect = window.App.canvas.getBoundingClientRect();
       const scale = rect.width / 320;
       const localX = (this.dragX - rect.left) / scale;
       const localY = (this.dragY - rect.top) / scale;
 
-      // Спавним 2 частицы за кадр для эффекта шлейфа
-      window.Particles.spawnExplosion(localX, localY, 'white', 2);
+      // Спавним 2 маленькие частицы за кадр (как шлейф в Тетрисе)
+      window.Particles.spawnOne(localX, localY, 'white');
+      window.Particles.spawnOne(localX, localY, 'white');
     }
 
     let isFalling = false;
