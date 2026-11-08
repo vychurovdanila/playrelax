@@ -73,7 +73,7 @@ window.Match3Game = {
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         if (this.visualY[r][c] < 0) {
-          this.velY[r][c] += 1.5; // Ускорение свободного падения
+          this.velY[r][c] += 0.2; // Ускорение свободного падения
           this.visualY[r][c] += this.velY[r][c];
           isFalling = true;
           if (this.visualY[r][c] >= 0) {
@@ -194,6 +194,16 @@ window.Match3Game = {
       const r = marks[i][0];
       const c = marks[i][1];
       if (this.board[r][c] !== -1) {
+        const colorIndex = this.board[r][c];
+
+        // Взрыв частиц в центре кубика
+        if (window.Particles && window.Particles.spawnExplosion) {
+          const px = this.offsetX + c * this.cellSize + this.cellSize / 2;
+          const py = this.offsetY + r * this.cellSize + this.visualY[r][c] + this.cellSize / 2;
+          // Берем цвет из массива this.colors
+          window.Particles.spawnExplosion(px, py, this.colors[colorIndex], 10);
+        }
+
         this.board[r][c] = -1;
         found = true;
       }
@@ -250,6 +260,11 @@ window.Match3Game = {
           );
         }
       }
+    }
+
+    // Отрисовка частиц поверх поля
+    if (window.Particles && window.Particles.update) {
+      window.Particles.update(ctx);
     }
   }
 };
