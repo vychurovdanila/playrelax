@@ -29,6 +29,11 @@ window.Match3Game = {
   visualY: [], // Смещение кубика по Y в пикселях (для плавного падения)
   velY: [],    // Скорость падения
 
+  // Состояние перетаскивания (drag-and-drop) фигурки пальцем
+  dragX: 0,
+  dragY: 0,
+  draggedTile: null, // { row, col } взятой фигурки
+
   init: function() {
     if (this.images.length === 0) {
       // Запускаем загрузку картинок
@@ -74,6 +79,17 @@ window.Match3Game = {
   update: function() {
     // Защита: если поле еще не создано, выходим
     if (!this.board || this.board.length === 0) return;
+
+    // Если фигурка в руке — сыпем искры (шлейф под пальцем)
+    if (this.draggedTile && window.Particles && window.Particles.spawnExplosion) {
+      const rect = window.App.canvas.getBoundingClientRect();
+      const scale = rect.width / 320;
+      const localX = (this.dragX - rect.left) / scale;
+      const localY = (this.dragY - rect.top) / scale;
+
+      // Спавним 2 частицы за кадр для эффекта шлейфа
+      window.Particles.spawnExplosion(localX, localY, 'white', 2);
+    }
 
     let isFalling = false;
     for (let r = 0; r < this.rows; r++) {
@@ -255,6 +271,9 @@ window.Match3Game = {
         let colorIndex = this.board[r][c];
         if (colorIndex === -1) continue; // Пустая клетка
 
+        // Взятую фигурку не рисуем здесь — она отрисуется поверх всех в конце с подсветкой
+        if (this.draggedTile && this.draggedTile.row === r && this.draggedTile.col === c) continue;
+
         // Рисуем только картинку (фолбэк на цвета убран — он давал мигание при загрузке)
         if (this.images[colorIndex]) {
           ctx.drawImage(
@@ -265,6 +284,31 @@ window.Match3Game = {
             this.cellSize - 2
           );
         }
+      }
+    }
+
+    // Рисуем взятую фигурку поверх всех, со свечением
+    if (this.draggedTile) {
+      const rect = window.App.canvas.getBoundingClientRect();
+      const scale = rect.width / 320;
+      // Центрируем фигурку под пальцем
+      const drawX = (this.dragX - rect.left) / scale - this.cellSize / 2;
+      const drawY = (this.dragY - rect.top) / scale - this.cellSize / 2;
+
+      const colorIndex = this.board[this.draggedTile.row][this.draggedTile.col];
+
+      if (colorIndex !== -1 && this.images[colorIndex]) {
+        ctx.save();
+        // Добавляем свечение
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = 'white';
+        // Рисуем фигурку
+        ctx.drawImage(
+          this.images[colorIndex],
+          drawX, drawY,
+          this.cellSize - 2, this.cellSize - 2
+        );
+        ctx.restore();
       }
     }
 
@@ -285,10 +329,54 @@ document.addEventListener('touchstart', function(e) {
 
   Match3Game.touchStartX = e.touches[0].clientX;
   Match3Game.touchStartY = e.touches[0].clientY;
+
+  // Вычисляем клетку под пальцем и берем фигурку в руку (для drag-and-drop)
+  const rect = window.App.canvas.getBoundingClientRect();
+  const scale = rect.width / 320;
+  const localX = (e.touches[0].clientX - rect.left) / scale;
+  const localY = (e.touches[0].clientY - rect.top) / scale;
+  const col = Math.floor(localX / Match3Game.cellSize);
+  const row = Math.floor(localY / Match3Game.cellSize);
+
+  // Если палец попал в сетку — берем фигурку
+  if (row >= 0 && row < Match3Game.rows && col >= 0 && col < Match3Game.cols) {
+    Match3Game.draggedTile = { row: row, col: col };
+    Match3Game.dragX = e.touches[0].clientX;
+    Match3Game.dragY = e.touches[0].clientY;
+  }
 });
+
+document.addEventListener('touchmove', function(e) {
+  if (window.App && window.App.currentGame !== 'match3') return;
+  if (Match3Game.draggedTile && e.touches.length === 1) {
+    Match3Game.dragX = e.touches[0].clientX;
+    Match3Game.dragY = e.touches[0].clientY;
+  }
+}, { passive: true });
 
 document.addEventListener('touchend', function(e) {
   if (window.App && window.App.currentGame !== 'match3') return;
+
+  // Если мы тащили фигурку, проверяем, куда ее бросили
+  if (Match3Game.draggedTile) {
+    // Пересчитываем финальную позицию (логика как в свайпе)
+    const rect = window.App.canvas.getBoundingClientRect();
+    const scale = rect.width / 320;
+    const endCol = Math.floor((e.changedTouches[0].clientX - rect.left) / scale / Match3Game.cellSize);
+    const endRow = Math.floor((e.changedTouches[0].clientY - rect.top) / scale / Match3Game.cellSize);
+
+    // Если бросили в пределах поля и это не та же клетка
+    if (endRow >= 0 && endRow < Match3Game.rows && endCol >= 0 && endCol < Match3Game.cols) {
+      if (endRow !== Match3Game.draggedTile.row || endCol !== Match3Game.draggedTile.col) {
+        Match3Game.swapTiles(Match3Game.draggedTile.row, Match3Game.draggedTile.col, endRow, endCol);
+      }
+    }
+    Match3Game.draggedTile = null; // Отпустили
+    Match3Game.touchStartX = null;
+    Match3Game.touchStartY = null;
+    return; // Выходим, чтобы не сработал обычный свайп
+  }
+
   if (!Match3Game.touchStartX) return;
 
   const dx = e.changedTouches[0].clientX - Match3Game.touchStartX;
