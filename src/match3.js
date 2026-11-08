@@ -21,9 +21,12 @@ window.Match3Game = {
       }
       this.board.push(row);
     }
-    // Убираем готовые линии на старте: чистим и досыпаем, пока есть совпадения
-    while (this.checkMatches()) {
+    // Убираем готовые линии на старте: чистим и досыпаем, пока есть совпадения.
+    // Ограничение попыток — страховка от зацикливания (браузер не зависнет).
+    let safetyCounter = 0;
+    while (this.checkMatches() && safetyCounter < 50) {
       this.dropTiles();
+      safetyCounter++;
     }
   },
 
@@ -76,6 +79,9 @@ window.Match3Game = {
   },
 
   checkMatches: function() {
+    // Защита: до init() доски нет — иначе TypeError и пустой экран
+    if (!this.board || this.board.length === 0) return false;
+
     let found = false;
     const marks = [];
 

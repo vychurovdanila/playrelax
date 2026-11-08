@@ -30,9 +30,16 @@ window.App = {
     if (this.currentGame === 'tetris' && window.TetrisGame) {
       window.TetrisGame.update();
       window.TetrisGame.draw(this.ctx);
-    } else if (this.currentGame === 'match3' && window.Match3Game) {
-      window.Match3Game.update();
-      window.Match3Game.draw(this.ctx);
+    } else if (this.currentGame === 'match3') {
+      try {
+        window.Match3Game.update();
+        window.Match3Game.draw(this.ctx);
+      } catch (e) {
+        console.error("Match3 Error:", e);
+        this.ctx.fillStyle = 'red';
+        this.ctx.font = '14px sans-serif';
+        this.ctx.fillText("Ошибка Match3: " + e.message, 10, 50);
+      }
     }
   }
 };
