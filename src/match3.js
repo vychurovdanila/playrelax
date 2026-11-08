@@ -21,10 +21,17 @@ window.Match3Game = {
       }
       this.board.push(row);
     }
+    // Убираем готовые линии на старте: чистим и досыпаем, пока есть совпадения
+    while (this.checkMatches()) {
+      this.dropTiles();
+    }
   },
 
   update: function() {
-    // Пока пусто, логика свайпов будет в следующих шагах
+    // Цепная реакция: пока есть совпадения — чистим и роняем кубики
+    if (this.checkMatches()) {
+      this.dropTiles();
+    }
   },
 
   handleSwipe: function(startX, startY, dx, dy) {
@@ -59,6 +66,79 @@ window.Match3Game = {
     let temp = this.board[r1][c1];
     this.board[r1][c1] = this.board[r2][c2];
     this.board[r2][c2] = temp;
+
+    // Обмен засчитывается только если он создал линию: иначе возвращаем всё назад
+    if (!this.checkMatches()) {
+      let tempBack = this.board[r1][c1];
+      this.board[r1][c1] = this.board[r2][c2];
+      this.board[r2][c2] = tempBack;
+    }
+  },
+
+  checkMatches: function() {
+    let found = false;
+    const marks = [];
+
+    // Горизонтальные линии из 3+ одинаковых цветов
+    for (let r = 0; r < this.rows; r++) {
+      let runStart = 0;
+      for (let c = 1; c <= this.cols; c++) {
+        const same = c < this.cols &&
+          this.board[r][c] !== -1 &&
+          this.board[r][c] === this.board[r][runStart];
+        if (!same) {
+          if (c - runStart >= 3 && this.board[r][runStart] !== -1) {
+            for (let k = runStart; k < c; k++) marks.push([r, k]);
+          }
+          runStart = c;
+        }
+      }
+    }
+
+    // Вертикальные линии из 3+ одинаковых цветов
+    for (let c = 0; c < this.cols; c++) {
+      let runStart = 0;
+      for (let r = 1; r <= this.rows; r++) {
+        const same = r < this.rows &&
+          this.board[r][c] !== -1 &&
+          this.board[r][c] === this.board[runStart][c];
+        if (!same) {
+          if (r - runStart >= 3 && this.board[runStart][c] !== -1) {
+            for (let k = runStart; k < r; k++) marks.push([k, c]);
+          }
+          runStart = r;
+        }
+      }
+    }
+
+    for (let i = 0; i < marks.length; i++) {
+      const r = marks[i][0];
+      const c = marks[i][1];
+      if (this.board[r][c] !== -1) {
+        this.board[r][c] = -1;
+        found = true;
+      }
+    }
+
+    return found;
+  },
+
+  dropTiles: function() {
+    for (let c = 0; c < this.cols; c++) {
+      // Снизу вверх: подтягиваем заполненные клетки вниз, пропуская пустые
+      let writeRow = this.rows - 1;
+      for (let r = this.rows - 1; r >= 0; r--) {
+        if (this.board[r][c] !== -1) {
+          this.board[writeRow][c] = this.board[r][c];
+          if (writeRow !== r) this.board[r][c] = -1;
+          writeRow--;
+        }
+      }
+      // Оставшиеся сверху пустые клетки — новые случайные цвета
+      for (let r = writeRow; r >= 0; r--) {
+        this.board[r][c] = Math.floor(Math.random() * this.colors.length);
+      }
+    }
   },
 
   draw: function(ctx) {
