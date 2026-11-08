@@ -19,31 +19,43 @@ window.Match3Game = {
     'assets/images/tile5.svg'
   ],
   images: [], // Сюда загрузятся сами картинки
+  isLoaded: false, // Флаг: все картинки загружены
 
   init: function() {
-    // Загружаем SVG-картинки (только при первом запуске)
     if (this.images.length === 0) {
-      for (let i = 0; i < this.imagePaths.length; i++) {
-        let img = new Image();
-        img.src = this.imagePaths[i];
-        this.images.push(img);
-      }
-    }
+      // Запускаем загрузку картинок
+      let promises = this.imagePaths.map(path => {
+        return new Promise((resolve) => {
+          let img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(img); // Даже если ошибка — не блокируем игру
+          img.src = path;
+        });
+      });
 
-    this.board = [];
-    for (let r = 0; r < this.rows; r++) {
-      let row = [];
-      for (let c = 0; c < this.cols; c++) {
-        row.push(Math.floor(Math.random() * this.colors.length));
+      // Когда всё загрузится — ставим флаг
+      Promise.all(promises).then((loadedImages) => {
+        this.images = loadedImages;
+        this.isLoaded = true;
+      });
+
+      // Генерируем доску (как было раньше)
+      this.board = [];
+      for (let r = 0; r < this.rows; r++) {
+        let row = [];
+        for (let c = 0; c < this.cols; c++) {
+          row.push(Math.floor(Math.random() * this.colors.length));
+        }
+        this.board.push(row);
       }
-      this.board.push(row);
-    }
-    // Убираем готовые линии на старте: чистим и досыпаем, пока есть совпадения.
-    // Ограничение попыток — страховка от зацикливания (браузер не зависнет).
-    let safetyCounter = 0;
-    while (this.checkMatches() && safetyCounter < 50) {
-      this.dropTiles();
-      safetyCounter++;
+
+      // Убираем готовые линии на старте: чистим и досыпаем, пока есть совпадения.
+      // Ограничение попыток — страховка от зацикливания (браузер не зависнет).
+      let safetyCounter = 0;
+      while (this.checkMatches() && safetyCounter < 50) {
+        this.dropTiles();
+        safetyCounter++;
+      }
     }
   },
 
@@ -190,27 +202,18 @@ window.Match3Game = {
     // Защита: доска создается при первом кадре, если init() еще не вызывался
     if (!this.board || this.board.length === 0) this.init();
 
-    // Темный фон под сеткой
-    ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
-    ctx.fillRect(0, 0, 320, 640);
+    // Пока картинки не загрузились — ничего не рисуем (оставляем прозрачный фон)
+    if (!this.isLoaded || !this.board || this.board.length === 0) return;
 
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
         let colorIndex = this.board[r][c];
         if (colorIndex === -1) continue; // Пустая клетка
 
-        // Если картинка загружена — рисуем её, иначе цветной квадрат (на случай ошибки)
-        if (this.images[colorIndex] && this.images[colorIndex].complete) {
+        // Рисуем только картинку (фолбэк на цвета убран — он давал мигание при загрузке)
+        if (this.images[colorIndex]) {
           ctx.drawImage(
             this.images[colorIndex],
-            this.offsetX + c * this.cellSize + 1,
-            this.offsetY + r * this.cellSize + 1,
-            this.cellSize - 2,
-            this.cellSize - 2
-          );
-        } else {
-          ctx.fillStyle = this.colors[colorIndex];
-          ctx.fillRect(
             this.offsetX + c * this.cellSize + 1,
             this.offsetY + r * this.cellSize + 1,
             this.cellSize - 2,
