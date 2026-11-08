@@ -206,8 +206,8 @@ window.Match3Game = {
         if (window.Particles && window.Particles.spawnExplosion) {
           const px = this.offsetX + c * this.cellSize + this.cellSize / 2;
           const py = this.offsetY + r * this.cellSize + this.visualY[r][c] + this.cellSize / 2;
-          // Берем цвет из массива this.colors
-          window.Particles.spawnExplosion(px, py, this.colors[colorIndex], 25);
+          // Цвет — белый: фактическая прозрачность задаётся внутри движка частиц (p.alpha)
+          window.Particles.spawnExplosion(px, py, 'white', 30);
         }
 
         this.board[r][c] = -1;

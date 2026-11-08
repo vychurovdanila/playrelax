@@ -104,6 +104,16 @@ window.Particles = (function () {
       const p = particles[i];
 
       // Физика: позиция -> вязкость -> жизнь.
+      // Завихрение: поворачиваем вектор скорости, чтобы разлет был «живым».
+      if (p.swirl) {
+        const cos = Math.cos(p.swirl);
+        const sin = Math.sin(p.swirl);
+        const nvx = p.vx * cos - p.vy * sin;
+        const nvy = p.vx * sin + p.vy * cos;
+        p.vx = nvx;
+        p.vy = nvy;
+      }
+
       p.x += p.vx;
       p.y += p.vy;
       p.vx *= DRAG;
@@ -118,7 +128,7 @@ window.Particles = (function () {
       }
 
       // Отрисовка: прозрачность и радиус зависят от жизни — мягкое затухание.
-      ctx.globalAlpha = p.life * p.life; // Квадрат — гаснет мягче к концу
+      ctx.globalAlpha = p.life * p.life * (p.alpha || 1); // Квадрат — гаснет мягче к концу; p.alpha — разброс прозрачности
       ctx.fillStyle = p.color;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
@@ -140,13 +150,21 @@ window.Particles = (function () {
       p.y = y;
       // Разлет веером на 360 градусов
       const angle = Math.random() * Math.PI * 2;
-      const speed = 3 + Math.random() * 6; // Разная скорость разлета
+      const speed = 1.5 + Math.random() * 3;
       p.vx = Math.cos(angle) * speed;
       p.vy = Math.sin(angle) * speed;
+
+      // Случайное закручивание вектора скорости (от -0.15 до 0.15 рад за кадр)
+      p.swirl = (Math.random() - 0.5) * 0.3;
+
       p.life = 8.5 + Math.random() * 2.5; // Живут дольше, чем шлейф
       p.decay = 0.01 + Math.random() * 0.015; // Взрывные частицы тоже живут дольше
       p.size = 0.18 + Math.random() * 0.18; // Разный размер
       p.color = color;
+
+      // Случайная базовая прозрачность (от 40% до 100%)
+      p.alpha = 0.4 + Math.random() * 0.6;
+
       particles.push(p);
     }
   }
