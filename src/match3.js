@@ -31,8 +31,19 @@ window.Match3Game = {
   },
 
   update: function() {
-    // Цепная реакция: пока есть совпадения — чистим и роняем кубики
-    if (this.checkMatches()) {
+    // Проверяем, есть ли пустые клетки (-1) на поле
+    let hasEmpty = false;
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (this.board[r][c] === -1) {
+          hasEmpty = true;
+          break;
+        }
+      }
+    }
+
+    // Если есть пустые места, запускаем падение и заполнение
+    if (hasEmpty) {
       this.dropTiles();
     }
   },
@@ -131,17 +142,19 @@ window.Match3Game = {
 
   dropTiles: function() {
     for (let c = 0; c < this.cols; c++) {
-      // Снизу вверх: подтягиваем заполненные клетки вниз, пропуская пустые
-      let writeRow = this.rows - 1;
+      let emptySpaces = 0;
+      // Идем по колонке снизу вверх
       for (let r = this.rows - 1; r >= 0; r--) {
-        if (this.board[r][c] !== -1) {
-          this.board[writeRow][c] = this.board[r][c];
-          if (writeRow !== r) this.board[r][c] = -1;
-          writeRow--;
+        if (this.board[r][c] === -1) {
+          emptySpaces++;
+        } else if (emptySpaces > 0) {
+          // Двигаем кубик вниз на количество пустых мест
+          this.board[r + emptySpaces][c] = this.board[r][c];
+          this.board[r][c] = -1;
         }
       }
-      // Оставшиеся сверху пустые клетки — новые случайные цвета
-      for (let r = writeRow; r >= 0; r--) {
+      // Заполняем пустые места сверху новыми случайными кубиками
+      for (let r = 0; r < emptySpaces; r++) {
         this.board[r][c] = Math.floor(Math.random() * this.colors.length);
       }
     }
