@@ -20,5 +20,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./src/
-          server-dir: /public_html/  # <-- Измени этот путь, если твой хостинг использует другую папку (например, /www/ или /domains/playrelax.ru/public_html/)
+          server-dir: /www/playrelax.ru  # <-- Измени этот путь, если твой хостинг использует другую папку (например, /www/ или /domains/playrelax.ru/public_html/)
           dangerous-clean-slate: false
