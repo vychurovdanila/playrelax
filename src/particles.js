@@ -18,7 +18,7 @@ window.Particles = (function () {
   'use strict';
 
   // --- Настройки эффекта (правь тут) ---
-  const MAX_PARTICLES = 3000;   // Жёсткий потолок: защита от перегрузки памяти
+  const MAX_PARTICLES = 3200;   // Жёсткий потолок: защита от перегрузки памяти
                                 // (с запасом: 40 блоков × ~14 частиц на 4 линии)
   const PER_CELL_CHANCE = 0.13; // Шлейф будет гуще
   const LIFE_DECAY_MIN = 0.0035; // Дольше живут
@@ -149,24 +149,24 @@ window.Particles = (function () {
       p.x = x;
       p.y = y;
       // Добавляем случайный разброс, чтобы облако было неидеальным
-      const angle = (Math.random() * Math.PI * 2) + (Math.random() - 0.5) * 0.5;
-      const speed = 1.5 + Math.random() * 3;
+      const angle = (Math.random() * Math.PI * 2) + (Math.random() - 0.8) * 0.75;
+      const speed = 1.8 + Math.random() * 6;
       p.vx = Math.cos(angle) * speed;
       p.vy = Math.sin(angle) * speed;
 
       // Случайное закручивание вектора скорости (от -0.3 до 0.3 рад за кадр)
-      p.swirl = (Math.random() - 0.5) * 0.6; // Больше хаоса и закручивания
+      p.swirl = (Math.random() - 0.2) * 0.1; // Больше хаоса и закручивания
 
       // life — доля жизни [1..0], а радиус при рендере = size * life.
       // Раньше life стартовал с 8.5–11, из-за чего стартовый радиус был
       // size * 8.5–11 (10–40 px) — отсюда «огромные» взрывы на playrelax.ru.
-      p.life = 1.0;
-      p.decay = 0.012 + Math.random() * 0.016; // ≈36–80 кадров жизни
-      p.size = 1.6 + Math.random() * 1.8; // 1.6–3.4 px в первый кадр
+      p.life = 1.4 + Math.random() * 0.8; // ≈1.4–2.2
+      p.decay = 0.007 + Math.random() * 0.009; // ≈36–80 кадров жизни
+      p.size = 1.4 + Math.random() * 1.7; // 1.6–3.4 px в первый кадр
       p.color = color;
 
       // Случайная базовая прозрачность (от 40% до 100%)
-      p.alpha = 0.4 + Math.random() * 0.6;
+      p.alpha = 0.6 + Math.random() * 0.9;
 
       particles.push(p);
     }
@@ -182,15 +182,15 @@ window.Particles = (function () {
       p.y = y;
       // Угол от 180 до 360 градусов (в Canvas Y идет вниз, значит вверх это минус)
       const angle = Math.PI + Math.random() * Math.PI;
-      const speed = 1.5 + Math.random() * 3;
+      const speed = 1.6 + Math.random() * 3;
 
       p.vx = Math.cos(angle) * speed;
       p.vy = Math.sin(angle) * speed; // Летят вверх
-      p.life = 1.0; // life — доля жизни [1..0]; радиус при ренте = size * life
-      p.decay = 0.012 + Math.random() * 0.012; // Гаснут за ≈40–85 кадров
+      p.life = 1.3; // life — доля жизни [1..0]; радиус при ренте = size * life
+      p.decay = 0.01 + Math.random() * 0.009; // Гаснут за ≈40–85 кадров
       // Размер заметный, но без «шаров»: при ренте радиус = size * life,
       // поэтому 2.2–4.2 даёт видимые искры 2–4 px в первый кадр.
-      p.size = 2.2 + Math.random() * 2.0;
+      p.size = 2.0 + Math.random() * 1.8;
       p.color = color;
       particles.push(p);
     }
