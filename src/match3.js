@@ -83,15 +83,15 @@ window.Match3Game = {
     // Защита: если поле еще не создано, выходим
     if (!this.board || this.board.length === 0) return;
 
-    // Анимация возврата фигурки на место (ease-out)
+    // Анимация плавного возврата фигурки на своё место (ease-out)
     if (this.returningTile) {
       const rt = this.returningTile;
-      rt.currentX += (rt.targetX - rt.currentX) * 0.2; // Коэффициент плавности
-      rt.currentY += (rt.targetY - rt.currentY) * 0.2;
+      rt.currentX += (rt.targetX - rt.currentX) * 0.25; // Плавность
+      rt.currentY += (rt.targetY - rt.currentY) * 0.25;
 
       // Если фигурка почти на месте — фиксируем и убираем
-      if (Math.abs(rt.targetX - rt.currentX) < 1 && Math.abs(rt.targetY - rt.currentY) < 1) {
-        this.returningTile = null;
+      if (Math.abs(rt.targetX - rt.currentX) < 0.5 && Math.abs(rt.targetY - rt.currentY) < 0.5) {
+        this.returningTile = null; // Прибыли на место
       }
     }
 
@@ -394,39 +394,34 @@ document.addEventListener('touchend', function(e) {
 
   // Если мы тащили фигурку, проверяем, куда ее бросили
   if (Match3Game.draggedTile) {
-    // Пересчитываем финальную позицию (логика как в свайпе)
     const rect = window.App.canvas.getBoundingClientRect();
     const scale = rect.width / 320;
     const endCol = Math.floor((e.changedTouches[0].clientX - rect.left) / scale / Match3Game.cellSize);
     const endRow = Math.floor((e.changedTouches[0].clientY - rect.top) / scale / Match3Game.cellSize);
 
-    // Свап засчитывается, только если бросили в другую клетку внутри поля
-    let swapHappened = false;
+    let didSwap = false;
+    // Если бросили в пределах поля и это не та же клетка
     if (endRow >= 0 && endRow < Match3Game.rows && endCol >= 0 && endCol < Match3Game.cols) {
       if (endRow !== Match3Game.draggedTile.row || endCol !== Match3Game.draggedTile.col) {
+        // Пытаемся свапнуть
         Match3Game.swapTiles(Match3Game.draggedTile.row, Match3Game.draggedTile.col, endRow, endCol);
-        swapHappened = true;
+        didSwap = true;
       }
     }
 
-    // Бросили на то же место или за пределы поля — плавно возвращаем фигурку
-    if (!swapHappened) {
-      const scale = rect.width / 320;
-
-      // Сохраняем текущие координаты (где палец) и целевые (откуда взяли)
+    // Если свапа не было (или бросили мимо) — запускаем анимацию возврата
+    if (!didSwap) {
       Match3Game.returningTile = {
         row: Match3Game.draggedTile.row,
         col: Match3Game.draggedTile.col,
-        currentX: (Match3Game.dragX - rect.left) / scale - Match3Game.cellSize / 2,
-        currentY: (Match3Game.dragY - rect.top) / scale - Match3Game.cellSize / 2,
+        currentX: (e.changedTouches[0].clientX - rect.left) / scale - Match3Game.cellSize / 2,
+        currentY: (e.changedTouches[0].clientY - rect.top) / scale - Match3Game.cellSize / 2,
         targetX: Match3Game.offsetX + Match3Game.draggedTile.col * Match3Game.cellSize,
         targetY: Match3Game.offsetY + Match3Game.draggedTile.row * Match3Game.cellSize
       };
     }
 
     Match3Game.draggedTile = null; // Отпустили
-    Match3Game.touchStartX = null;
-    Match3Game.touchStartY = null;
     return; // Выходим, чтобы не сработал обычный свайп
   }
 
