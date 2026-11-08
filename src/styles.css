@@ -268,3 +268,13 @@ body.is-paused #overlay {
     display: none !important;
   }
 }
+
+/* --- Подключение шрифтов --- */
+body {
+  font-family: 'Nata Sans', sans-serif; /* Основной шрифт для интерфейса */
+}
+
+/* Пиксельный шрифт для заголовков, кнопок и ретро-элементов */
+h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
+  font-family: 'Tiny5', monospace;
+}
