@@ -47,6 +47,9 @@
   <!-- Система частиц (шлейф от фигуры). Должна идти ПЕРЕД game.js:
        game.js вызывает Particles.spawnFromPiece / Particles.update. -->
   <script src="particles.js"></script>
+  <!-- Менеджер видеофона (смена мира кроссфейдом). Должен идти ПЕРЕД game.js:
+       game.js вызывает window.VideoManager.init() и window.VideoManager.next(). -->
+  <script src="video.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

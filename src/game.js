@@ -1108,7 +1108,7 @@ document.addEventListener('keydown', function(e) {
   // на кнопки или адресную строку вместо смены мира.
   if (e.code === 'Tab' || e.key === 'Tab') {
     e.preventDefault();
-    switchWorld();
+    window.VideoManager.next();
     return;
   }
 
@@ -1457,87 +1457,6 @@ if (btnUnmute) {
     updateUnmuteUI();
   });
 }
-
-/* ============================================================
-   Смена мира: смена видеофона кроссфейдом на двух iframe.
-   Логика тетриса и звука выше — здесь только фон.
-   ============================================================ */
-// --- ЛОГИКА КРОССФЕЙДА ---
-const videoUrls = [
-  'https://kinescope.io/embed/nszJ4cfocx4KjVkpCdx83T?autoplay=1&mute=1&loop=1&controls=0',
-  'https://kinescope.io/embed/8zAsGmrzMbTPKZRbTfqj7S?autoplay=1&mute=1&loop=1&controls=0',
-  'https://kinescope.io/embed/doXEtFTSEQgmEqia53SpVw?autoplay=1&mute=1&loop=1&controls=0',
-  'https://kinescope.io/embed/ovoxefTvckdj5xKAxF15Lg?autoplay=1&mute=1&loop=1&controls=0'
-];
-let currentVideoIndex = 0;
-let activeIframe = 1; // 1 или 2
-
-// Защита от быстрых повторных свайпов: пока идёт кроссфейд (1050 мс),
-// второй вызов не запускает свой переход, а запоминается в pendingSwitch.
-let isSwitching = false;
-let pendingSwitch = false;
-let switchTimer = null;
-
-function switchWorld() {
-  // Быстрый повторный свайп приходит раньше, чем завершилась прошлая анимация
-  // (1050 мс). Если пустить его сразу, второй вызов перезапишет src слоя,
-  // который в этот момент ещё затухает, и фон мигнёт пустотой. Поэтому
-  // запоминаем отложенное переключение и выполняем его после текущего.
-  if (isSwitching) {
-    pendingSwitch = true;
-    return;
-  }
-
-  isSwitching = true;
-  switchTimer = setTimeout(() => {
-    isSwitching = false;
-    switchTimer = null;
-    if (pendingSwitch) {
-      pendingSwitch = false;
-      switchWorld();
-    }
-  }, 1050);
-
-  currentVideoIndex = (currentVideoIndex + 1) % videoUrls.length;
-
-  // Определяем, какой iframe сейчас скрыт, а какой активен
-  const nextIframeNum = activeIframe === 1 ? 2 : 1;
-  const activeEl = document.getElementById(`bg-iframe-${activeIframe}`);
-  const nextEl = document.getElementById(`bg-iframe-${nextIframeNum}`);
-
-  // Слой ещё не в DOM — тихо выходим, чтобы не ронять остальной скрипт.
-  if (!activeEl || !nextEl) {
-    clearTimeout(switchTimer);
-    isSwitching = false;
-    switchTimer = null;
-    return;
-  }
-
-  // 1. Загружаем новое видео в скрытый iframe
-  nextEl.src = videoUrls[currentVideoIndex];
-
-  // Смена мира = смена настроения: вместе с видео переключаем и музыку.
-  // window.audioManager создаётся в src/audio.js; проверка на существование
-  // защищает от ошибки, если скрипт аудио ещё не загрузился и менеджера нет.
-  if (window.audioManager) {
-    window.audioManager.next();
-  }
-
-  // 2. Ждем миллисекунду, чтобы iframe начал загружаться, и запускаем кроссфейд
-  setTimeout(() => {
-    activeEl.classList.remove('active'); // Старый плавно уходит в 0
-    nextEl.classList.add('active');      // Новый плавно проявляется в 1
-  }, 50);
-
-  // 3. Очищаем старый iframe после завершения анимации (через 1 секунду), чтобы не грузить память
-  setTimeout(() => {
-    activeEl.src = '';
-  }, 1050);
-
-  // Меняем указатель активного iframe
-  activeIframe = nextIframeNum;
-}
-
 // --- ЖЕСТЫ ---
 // Ловим жест на document в фазе ПЕРЕХВАТА (capture): как только на экране
 // оказываются два пальца, гасим событие (stopImmediatePropagation), чтобы
@@ -1641,7 +1560,7 @@ document.addEventListener('touchend', (e) => {
     if (e.touches.length === 0) {
       if (twoFingerMoved) {
         // Был свайп — меняем видео, паузу не трогаем
-        switchWorld();
+        window.VideoManager.next();
       } else {
         // Был короткий тап двумя пальцами — переключаем паузу.
         // Счётчик кадров сбрасываем, чтобы фигура не «дёрнулась» вниз
@@ -1671,6 +1590,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const startScreen = document.getElementById('start-screen');
   const startBtn = document.getElementById('start-btn');
   const gameCanvas = document.getElementById('game');
+
+  // Инициализируем видеофон: подставляем первое видео в активный iframe
+  // (см. src/video.js — подключён перед game.js).
+  if (window.VideoManager) window.VideoManager.init();
 
   if (startBtn && startScreen && gameCanvas) {
     startBtn.addEventListener('click', () => {
