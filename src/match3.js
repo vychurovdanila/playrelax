@@ -11,8 +11,25 @@ window.Match3Game = {
   offsetY: 0,        // Сетка начинается с самого верха
   board: [],
   colors: ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFD733'], // 5 цветов
+  imagePaths: [
+    'assets/images/tile1.svg',
+    'assets/images/tile2.svg',
+    'assets/images/tile3.svg',
+    'assets/images/tile4.svg',
+    'assets/images/tile5.svg'
+  ],
+  images: [], // Сюда загрузятся сами картинки
 
   init: function() {
+    // Загружаем SVG-картинки (только при первом запуске)
+    if (this.images.length === 0) {
+      for (let i = 0; i < this.imagePaths.length; i++) {
+        let img = new Image();
+        img.src = this.imagePaths[i];
+        this.images.push(img);
+      }
+    }
+
     this.board = [];
     for (let r = 0; r < this.rows; r++) {
       let row = [];
@@ -182,15 +199,24 @@ window.Match3Game = {
         let colorIndex = this.board[r][c];
         if (colorIndex === -1) continue; // Пустая клетка
 
-        ctx.fillStyle = this.colors[colorIndex];
-
-        // Рисуем квадрат с небольшим отступом (сетка)
-        ctx.fillRect(
-          this.offsetX + c * this.cellSize + 1,
-          this.offsetY + r * this.cellSize + 1,
-          this.cellSize - 2,
-          this.cellSize - 2
-        );
+        // Если картинка загружена — рисуем её, иначе цветной квадрат (на случай ошибки)
+        if (this.images[colorIndex] && this.images[colorIndex].complete) {
+          ctx.drawImage(
+            this.images[colorIndex],
+            this.offsetX + c * this.cellSize + 1,
+            this.offsetY + r * this.cellSize + 1,
+            this.cellSize - 2,
+            this.cellSize - 2
+          );
+        } else {
+          ctx.fillStyle = this.colors[colorIndex];
+          ctx.fillRect(
+            this.offsetX + c * this.cellSize + 1,
+            this.offsetY + r * this.cellSize + 1,
+            this.cellSize - 2,
+            this.cellSize - 2
+          );
+        }
       }
     }
   }
