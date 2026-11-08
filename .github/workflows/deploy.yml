@@ -20,5 +20,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./src/
-          server-dir: "/www/playrelax.ru/" 
+          server-dir: /
           dangerous-clean-slate: false
