@@ -10,7 +10,13 @@ window.Match3Game = {
   offsetX: 0,
   offsetY: 0,        // Сетка начинается с самого верха
   board: [],
-  colors: ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFD733'], // 5 цветов
+  colors: [
+    'rgba(255, 255, 255, 0.65)', // Tile 1 (65%)
+    'rgba(255, 255, 255, 1.0)',  // Tile 2 (100%)
+    'rgba(255, 255, 255, 0.85)', // Tile 3 (85%)
+    'rgba(255, 255, 255, 0.90)', // Tile 4 (90%)
+    'rgba(255, 255, 255, 1.0)'   // Tile 5 (100%)
+  ],
   imagePaths: [
     'assets/images/tile1.svg',
     'assets/images/tile2.svg',
@@ -201,7 +207,7 @@ window.Match3Game = {
           const px = this.offsetX + c * this.cellSize + this.cellSize / 2;
           const py = this.offsetY + r * this.cellSize + this.visualY[r][c] + this.cellSize / 2;
           // Берем цвет из массива this.colors
-          window.Particles.spawnExplosion(px, py, this.colors[colorIndex], 10);
+          window.Particles.spawnExplosion(px, py, this.colors[colorIndex], 25);
         }
 
         this.board[r][c] = -1;
