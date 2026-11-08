@@ -63,6 +63,7 @@ window.Particles = (function () {
     p.decay = DECAY_SLOW + Math.random() * (DECAY_FAST - DECAY_SLOW);
     p.size = SIZE_MIN + Math.random() * (SIZE_MAX - SIZE_MIN); // Разный размер
     p.color = color;
+    p.blur = 0; // Без размытия по умолчанию (объект из пула мог нести старое значение)
 
     particles.push(p);
   }
@@ -130,9 +131,19 @@ window.Particles = (function () {
       // Отрисовка: прозрачность и радиус зависят от жизни — мягкое затухание.
       ctx.globalAlpha = p.life * p.life * (p.alpha || 1); // Квадрат — гаснет мягче к концу; p.alpha — разброс прозрачности
       ctx.fillStyle = p.color;
+
+      // Применяем размытие, если оно задано
+      if (p.blur) {
+        ctx.shadowBlur = p.blur * 2;
+        ctx.shadowColor = p.color;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
       ctx.fill();
+      ctx.shadowBlur = 0; // Сбрасываем размытие для следующей частицы
     }
 
     ctx.restore();
@@ -165,6 +176,15 @@ window.Particles = (function () {
       p.size = 1.4 + Math.random() * 1.7; // 1.6–3.4 px в первый кадр
       p.color = color;
 
+      // Разнообразие по тону (яркости) для белого цвета
+      if (color === 'white') {
+        const brightness = 200 + Math.floor(Math.random() * 55); // От 200 (сероватый) до 255 (чисто белый)
+        p.color = `rgb(${brightness}, ${brightness}, ${brightness})`;
+      }
+
+      // Случайное размытие (свечение) для 30% искр
+      p.blur = Math.random() < 0.3 ? 3 : 0;
+
       // Случайная базовая прозрачность (от 40% до 100%)
       p.alpha = 0.6 + Math.random() * 0.9;
 
@@ -192,6 +212,7 @@ window.Particles = (function () {
       // поэтому 2.2–4.2 даёт видимые искры 2–4 px в первый кадр.
       p.size = 2.0 + Math.random() * 1.8;
       p.color = color;
+      p.blur = 0; // Без размытия по умолчанию (объект из пула мог нести старое значение)
       particles.push(p);
     }
   }
