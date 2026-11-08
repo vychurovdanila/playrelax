@@ -1,11 +1,9 @@
 [
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track1.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track2.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track3.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track4.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track5.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track6.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track7.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track8.mp3",
-  "https://psqb3tzeuuwmgpfm.public.blob.vercel-storage.com/track9.mp3"
+  "track1.mp3",
+  "track2.mp3",
+  "track3.mp3",
+  "track4.mp3",
+  "track5.mp3",
+  "track6.mp3",
+  "track7.mp3"
 ]
