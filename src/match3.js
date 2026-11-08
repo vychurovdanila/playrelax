@@ -31,7 +31,16 @@ window.Match3Game = {
   },
 
   update: function() {
-    // Проверяем, есть ли пустые клетки (-1) на поле
+    // Защита: если поле еще не создано, выходим
+    if (!this.board || this.board.length === 0) return;
+
+    // 1. Проверяем, есть ли совпадения (каскады после падения)
+    if (this.checkMatches()) {
+      this.dropTiles();
+      return; // Ждем следующего кадра для отрисовки
+    }
+
+    // 2. Проверяем, есть ли пустые клетки (дырки)
     let hasEmpty = false;
     for (let r = 0; r < this.rows; r++) {
       for (let c = 0; c < this.cols; c++) {
@@ -42,7 +51,7 @@ window.Match3Game = {
       }
     }
 
-    // Если есть пустые места, запускаем падение и заполнение
+    // 3. Если есть пустые места, запускаем падение
     if (hasEmpty) {
       this.dropTiles();
     }
@@ -161,7 +170,8 @@ window.Match3Game = {
   },
 
   draw: function(ctx) {
-    if (this.board.length === 0) this.init();
+    // Защита: доска создается при первом кадре, если init() еще не вызывался
+    if (!this.board || this.board.length === 0) this.init();
 
     // Темный фон под сеткой
     ctx.fillStyle = 'rgba(20, 20, 20, 0.9)';
