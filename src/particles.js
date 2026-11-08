@@ -148,18 +148,18 @@ window.Particles = (function () {
       const p = acquire();
       p.x = x;
       p.y = y;
-      // Разлет веером на 360 градусов
-      const angle = Math.random() * Math.PI * 2;
+      // Добавляем случайный разброс, чтобы облако было неидеальным
+      const angle = (Math.random() * Math.PI * 2) + (Math.random() - 0.5) * 0.5;
       const speed = 1.5 + Math.random() * 3;
       p.vx = Math.cos(angle) * speed;
       p.vy = Math.sin(angle) * speed;
 
-      // Случайное закручивание вектора скорости (от -0.15 до 0.15 рад за кадр)
-      p.swirl = (Math.random() - 0.5) * 0.3;
+      // Случайное закручивание вектора скорости (от -0.3 до 0.3 рад за кадр)
+      p.swirl = (Math.random() - 0.5) * 0.6; // Больше хаоса и закручивания
 
       p.life = 8.5 + Math.random() * 2.5; // Живут дольше, чем шлейф
       p.decay = 0.01 + Math.random() * 0.015; // Взрывные частицы тоже живут дольше
-      p.size = 0.18 + Math.random() * 0.18; // Разный размер
+      p.size = 1.2 + Math.random() * 2.4; // Уменьшено на 20%
       p.color = color;
 
       // Случайная базовая прозрачность (от 40% до 100%)
