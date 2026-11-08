@@ -86,8 +86,9 @@ window.Match3Game = {
     // Анимация плавного возврата фигурки на своё место (ease-out)
     if (this.returningTile) {
       const rt = this.returningTile;
-      rt.currentX += (rt.targetX - rt.currentX) * 0.25; // Плавность
-      rt.currentY += (rt.targetY - rt.currentY) * 0.25;
+      // Коэффициент 1/12 (~0.083): возврат в 3 раза медленнее, чем при 0.25
+      rt.currentX += (rt.targetX - rt.currentX) * (0.25 / 3);
+      rt.currentY += (rt.targetY - rt.currentY) * (0.25 / 3);
 
       // Если фигурка почти на месте — фиксируем и убираем
       if (Math.abs(rt.targetX - rt.currentX) < 0.5 && Math.abs(rt.targetY - rt.currentY) < 0.5) {
