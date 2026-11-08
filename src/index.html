@@ -44,15 +44,11 @@
 
   <script src="vendor/howler.min.js"></script>
   <script src="audio.js"></script>
-  <!-- Система частиц (шлейф от фигуры). Должна идти ПЕРЕД game.js:
-       game.js вызывает Particles.spawnFromPiece / Particles.update. -->
   <script src="particles.js"></script>
-  <!-- Менеджер видеофона (смена мира кроссфейдом). Должен идти ПЕРЕД game.js:
-       game.js вызывает window.VideoManager.init() и window.VideoManager.next(). -->
   <script src="video.js"></script>
-  <script src="game.js"></script>
-  <!-- Многопальцевые жесты (2/3 пальца: пауза, смена мира, звук, трек).
-       Должен идти ПОСЛЕ game.js: использует window.GameAPI. -->
+  <script src="tetris.js"></script>
+  <script src="match3.js"></script>
   <script src="gestures.js"></script>
+  <script src="main.js"></script>
 </body>
 </html>

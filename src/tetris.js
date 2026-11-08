@@ -626,14 +626,26 @@ function placeTetromino(fallSpeed) {
   }
 }
 
-// Игровой цикл.
-function loop() {
-  rAF = requestAnimationFrame(loop);
-  context.clearRect(0, 0, canvas.width, canvas.height);
+/* ============================================================
+   ИГРОВОЙ ЦИКЛ ТЕТРИСА.
+   Модуль отдаёт наружу две чистые операции, которыми управляет main.js:
+     - window.TetrisGame.update() — вся ЛОГИКА кадра (камера, падение,
+       физика, цепная реакция). Ничего не рисует.
+     - window.TetrisGame.draw(ctx) — вся ОТРИСОВКА кадра (поле, фигура,
+       частицы) в переданный контекст.
+   requestAnimationFrame и clearRect теперь в main.js — здесь их нет.
+   ============================================================ */
+window.TetrisGame = {};
 
+/* ------------------------------------------------------------
+   ЛОГИКА КАДРА: камера, постановка фигуры, физика.
+   Рисование вынесено в draw() — порядок «сначала логика, потом
+   отрисовка» сохранён: main.js вызывает update(), затем draw().
+   ------------------------------------------------------------ */
+window.TetrisGame.update = function() {
   // ПАУЗА: логика падения не выполняется, фигура замирает. Сам эффект
   // (размытие канваса + фокус на видео) делается CSS-классом body.is-paused,
-  // никакого оверлея на канвасе не рисуем. requestAnimationFrame продолжает
+  // никакого оверлея на канвасе не рисуем. Цикл в main.js продолжает
   // крутиться, поэтому снятие паузы мгновенно возвращает игру в работу.
   if (isPaused) return;
 
@@ -653,48 +665,6 @@ function loop() {
   } else {
     // Прилипаем к цели, если почти доехали
     visualCameraY = cameraY;
-  }
-
-  // Рисуем игровое поле (только видимый диапазон камеры).
-  for (let r = 0; r < ROWS; r++) {
-    const screenRow = r - visualCameraY;
-    if (screenRow < 0 || screenRow >= VISIBLE_ROWS) continue;
-
-    for (let col = 0; col < COLS; col++) {
-      if (playfield[r][col]) {
-        // Блок уже взорвался в цепной реакции — не рисуем его. Ряд осыпается
-        // по мере волны, а не исчезает целиком в конце.
-        if (pendingClear && pendingClear.exploded.has(r * COLS + col)) continue;
-
-        const name = playfield[r][col];
-        context.fillStyle = colors[name];
-
-        // на 1 px меньше grid — создаёт эффект сетки.
-        // Падают (визуально сдвигаются вниз на globalFallOffset) только блоки
-        // выше съеденных линий: их строки идут до fallThresholdRow.
-        const fallShift = r < fallThresholdRow ? globalFallOffset : 0;
-
-        // Скругляем только внешние углы: угол прямой, если у клетки есть
-        // сосед по обеим сторонам этого угла (внутренний стык фигуры).
-        const hasTop = r > 0 && playfield[r - 1][col];
-        const hasBottom = r < ROWS - 1 && playfield[r + 1][col];
-        const hasLeft = col > 0 && playfield[r][col - 1];
-        const hasRight = col < COLS - 1 && playfield[r][col + 1];
-
-        drawRoundedBlock(
-          context,
-          col * grid,
-          screenRow * grid - fallShift,
-          grid - 1,
-          grid - 1,
-          5,
-          !hasTop && !hasLeft,
-          !hasTop && !hasRight,
-          !hasBottom && !hasRight,
-          !hasBottom && !hasLeft
-        );
-      }
-    }
   }
 
     // Обработка цепной реакции: взрываем по одному блоку, когда наступает
@@ -751,13 +721,10 @@ function loop() {
       tetromino = getNextTetromino();
     }
 
-    // --- ОБНОВЛЕНИЕ И ОТРИСОВКА ЧАСТИЦ ---
-    // Вся логика (физика, затухание, пул объектов, режим свечения) внутри
-    // модуля src/particles.js — здесь только вызов на один кадр.
-    // Вызывается БЕЗУСЛОВНО каждый кадр: модуль гарантированно существует,
-    // так как particles.js подключён в index.html перед game.js и пишет
-    // себя в window.Particles.
-    Particles.update(context);
+    // --- ЧАСТИЦЫ ---
+    // Логику и отрисовку частиц делает draw(): она рисует в канвас, а в
+    // update() ей делать нечего — оставлено только пояснение порядка.
+  // Логика фигуры заканчивается здесь.
 
   // Рисуем активную фигуру.
   if (tetromino) {
@@ -1022,7 +989,127 @@ function loop() {
     }
     context.restore(); // Возвращаем контекст в исходное состояние
   }
-}
+};
+
+/* ------------------------------------------------------------
+   ОТРИСОВКА КАДРА в переданный контекст.
+   Порядок ровно тот же, что был в старом loop(): поле → частицы →
+   «душа» и «тело» активной фигуры. Координаты берутся из состояния,
+   которое подготовил update(), поэтому физика не меняется.
+   ------------------------------------------------------------ */
+window.TetrisGame.draw = function(ctx) {
+  const context = ctx; // локальная ссылка — тело перенесено из loop() как есть
+
+  // Рисуем игровое поле (только видимый диапазон камеры).
+  for (let r = 0; r < ROWS; r++) {
+    const screenRow = r - visualCameraY;
+    if (screenRow < 0 || screenRow >= VISIBLE_ROWS) continue;
+
+    for (let col = 0; col < COLS; col++) {
+      if (playfield[r][col]) {
+        // Блок уже взорвался в цепной реакции — не рисуем его. Ряд осыпается
+        // по мере волны, а не исчезает целиком в конце.
+        if (pendingClear && pendingClear.exploded.has(r * COLS + col)) continue;
+
+        const name = playfield[r][col];
+        context.fillStyle = colors[name];
+
+        // на 1 px меньше grid — создаёт эффект сетки.
+        // Падают (визуально сдвигаются вниз на globalFallOffset) только блоки
+        // выше съеденных линий: их строки идут до fallThresholdRow.
+        const fallShift = r < fallThresholdRow ? globalFallOffset : 0;
+
+        const hasTop = r > 0 && playfield[r - 1][col];
+        const hasBottom = r < ROWS - 1 && playfield[r + 1][col];
+        const hasLeft = col > 0 && playfield[r][col - 1];
+        const hasRight = col < COLS - 1 && playfield[r][col + 1];
+
+        drawRoundedBlock(
+          context,
+          col * grid,
+          screenRow * grid - fallShift,
+          grid - 1,
+          grid - 1,
+          5,
+          !hasTop && !hasLeft,
+          !hasTop && !hasRight,
+          !hasBottom && !hasRight,
+          !hasBottom && !hasLeft
+        );
+      }
+    }
+  }
+
+  // --- ОТРИСОВКА ЧАСТИЦ ---
+  // Логика частиц (физика, затухание, пул объектов, свечение) внутри
+  // модуля src/particles.js — здесь только вызов на один кадр.
+  Particles.update(context);
+
+  // Рисуем активную фигуру.
+  if (tetromino) {
+    // Базовая скорость (нужна только update(); в draw берём готовое состояние).
+    const pieceWidth = tetromino.matrix[0].length;
+    const pieceHeight = tetromino.matrix.length;
+
+    // «Душа» — прозрачный контур точно на логической позиции (на сетке).
+    // Это целевая точка, куда летит тело.
+    context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    context.lineWidth = 1;
+    for (let row = 0; row < tetromino.matrix.length; row++) {
+      for (let col = 0; col < tetromino.matrix[row].length; col++) {
+        if (tetromino.matrix[row][col]) {
+          context.strokeRect(
+            (tetromino.col + col) * grid,
+            (tetromino.row + row - visualCameraY) * grid,
+            grid - 1, grid - 1
+          );
+        }
+      }
+    }
+
+    // «Тело» — плотные блоки, поворачивающиеся с инерцией (visualRot).
+    // Матрица уже отражает логический поворот; visualRot — визуальная ошибка,
+    // которая плавно гаснет к нулю, поэтому форма «докручивается» на месте.
+    context.save(); // Сохраняем состояние контекста
+
+    // Вычисляем центр фигуры для вращения (вычитаем visualCameraY для Y)
+    const centerX = (tetromino.visualCol + pieceWidth / 2) * grid;
+    const centerY = (tetromino.visualRow + pieceHeight / 2 - visualCameraY) * grid;
+
+    context.translate(centerX, centerY); // Переносим начало координат в центр фигуры
+    context.rotate(tetromino.visualRot); // Вращаем холст
+
+    context.fillStyle = colors[tetromino.name];
+
+    for (let row = 0; row < pieceHeight; row++) {
+      for (let col = 0; col < pieceWidth; col++) {
+        if (tetromino.matrix[row][col]) {
+          // Скругляем только внешние углы: угол прямой, если у клетки есть
+          // сосед по обеим сторонам этого угла (внутренний стык фигуры).
+          const hasTop = row > 0 && tetromino.matrix[row - 1][col];
+          const hasBottom = row < pieceHeight - 1 && tetromino.matrix[row + 1][col];
+          const hasLeft = col > 0 && tetromino.matrix[row][col - 1];
+          const hasRight = col < pieceWidth - 1 && tetromino.matrix[row][col + 1];
+
+          // Рисуем блоки относительно центра фигуры.
+          drawRoundedBlock(
+            context,
+            (col - pieceWidth / 2) * grid,
+            (row - pieceHeight / 2) * grid,
+            grid - 1,
+            grid - 1,
+            5,
+            !hasTop && !hasLeft,
+            !hasTop && !hasRight,
+            !hasBottom && !hasRight,
+            !hasBottom && !hasLeft
+          );
+        }
+      }
+    }
+    context.restore(); // Возвращаем контекст в исходное состояние
+  }
+};
 
 /* ============================================================
    Управление: клавиатура (десктоп) + touch (мобилки).
@@ -1448,7 +1535,8 @@ window.GameAPI = {
    ============================================================ */
 tetromino = getNextTetromino();
 resizeCanvas();
-rAF = requestAnimationFrame(loop);
+// Цикл кадров запускает main.js (window.App.init): он вызывает
+// window.TetrisGame.update() и .draw(ctx). Свой rAF модуль больше не крутит.
 
 // --- ЛОГИКА СТАРТОВОГО ЭКРАНА ---
 document.addEventListener('DOMContentLoaded', () => {

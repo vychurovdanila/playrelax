@@ -23,6 +23,7 @@ const TWO_FINGER_SWIPE_THRESHOLD = 30;
 let twoFingerStartX = null;
 let twoFingerStartY = null;
 let twoFingerMoved = false; // Флаг: был ли это свайп, а не тап
+let lastTwoFingerAxis = null; // Ось свайпа, зафиксированная в touchmove
 
 // Отдельное состояние для ТРЁХпальцевого жеста (тап = вкл/выкл звук,
 // свайп = следующий трек). Двухпальцевый жест эти переменные не трогает.
@@ -46,6 +47,7 @@ document.addEventListener('touchstart', (e) => {
     twoFingerStartX = e.touches[0].clientX;
     twoFingerStartY = e.touches[0].clientY;
     twoFingerMoved = false;
+    lastTwoFingerAxis = null;
     // Второй палец коснулся во время одиночного перетаскивания: гасим
     // автоповтор, иначе фигура продолжит ехать сама, пока палец на экране.
     stopSingleSwipe();
@@ -76,6 +78,9 @@ document.addEventListener('touchmove', (e) => {
     const distY = Math.abs(e.touches[0].clientY - twoFingerStartY);
     if (distX > TWO_FINGER_SWIPE_THRESHOLD || distY > TWO_FINGER_SWIPE_THRESHOLD) {
       twoFingerMoved = true;
+      // Запоминаем доминирующую ось: по ней touchend решит, менять игру
+      // (горизонталь) или видео (вертикаль).
+      lastTwoFingerAxis = distX > distY ? 'horizontal' : 'vertical';
     }
     e.stopImmediatePropagation();
   }
@@ -110,8 +115,28 @@ document.addEventListener('touchend', (e) => {
     // Пока на экране остался хотя бы один палец — ждём, иначе обработаем дважды.
     if (e.touches.length === 0) {
       if (twoFingerMoved) {
-        // Был свайп — меняем видео, паузу не трогаем
-        window.VideoManager.next();
+        // Свайп двумя пальцами. Направление задаёт действие:
+        //   горизонтальный — переключение игры (Тетрис / Match-3),
+        //   вертикальный   — смена видеофона.
+        // Знаки не важны: Math.abs в touchmove уже зафиксировал факт свайпа,
+        // здесь лишь определяем доминирующую ось.
+        const endTouch = e.changedTouches[0];
+        const distX = Math.abs(endTouch.clientX - twoFingerStartX);
+        const distY = Math.abs(endTouch.clientY - twoFingerStartY);
+        const axis = (distX > 0 || distY > 0)
+          ? (distX > distY ? 'horizontal' : 'vertical')
+          : (lastTwoFingerAxis || 'vertical');
+
+        if (axis === 'horizontal') {
+          // Горизонтальный свайп — меняем игру через дирижёра (window.App).
+          if (window.App) {
+            if (window.App.currentGame === 'tetris') window.App.switchGame('match3');
+            else window.App.switchGame('tetris');
+          }
+        } else {
+          // Вертикальный свайп — меняем видео (паузу не трогаем).
+          window.VideoManager.next();
+        }
       } else {
         // Был короткий тап двумя пальцами — переключаем паузу.
         // Счётчик кадров и класс на body переключает GameAPI.togglePause
@@ -120,6 +145,7 @@ document.addEventListener('touchend', (e) => {
       }
       twoFingerStartX = null;
       twoFingerStartY = null;
+      lastTwoFingerAxis = null;
     }
     // Гасим жест, чтобы канвас не воспринял его как тап/свайп игры.
     e.stopImmediatePropagation();
