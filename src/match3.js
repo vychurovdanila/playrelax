@@ -34,6 +34,9 @@ window.Match3Game = {
   dragY: 0,
   draggedTile: null, // { row, col } взятой фигурки
 
+  // Возврат фигурки на место, если её бросили не в ту клетку
+  returningTile: null, // { row, col, currentX, currentY, targetX, targetY }
+
   init: function() {
     if (this.images.length === 0) {
       // Запускаем загрузку картинок
@@ -79,6 +82,18 @@ window.Match3Game = {
   update: function() {
     // Защита: если поле еще не создано, выходим
     if (!this.board || this.board.length === 0) return;
+
+    // Анимация возврата фигурки на место (ease-out)
+    if (this.returningTile) {
+      const rt = this.returningTile;
+      rt.currentX += (rt.targetX - rt.currentX) * 0.2; // Коэффициент плавности
+      rt.currentY += (rt.targetY - rt.currentY) * 0.2;
+
+      // Если фигурка почти на месте — фиксируем и убираем
+      if (Math.abs(rt.targetX - rt.currentX) < 1 && Math.abs(rt.targetY - rt.currentY) < 1) {
+        this.returningTile = null;
+      }
+    }
 
     // Если фигурка в руке — сыпем искры (шлейф под пальцем)
     if (this.draggedTile && window.Particles && window.Particles.spawnOne) {
@@ -275,6 +290,11 @@ window.Match3Game = {
         // Взятую фигурку не рисуем здесь — она отрисуется поверх всех в конце с подсветкой
         if (this.draggedTile && this.draggedTile.row === r && this.draggedTile.col === c) continue;
 
+        // Возвращающуюся фигурку тоже не рисуем в сетке — её отрисуем поверх в конце
+        if (this.returningTile && this.returningTile.row === r && this.returningTile.col === c) {
+          continue; // Пропускаем, ее отрисуем поверх
+        }
+
         // Рисуем только картинку (фолбэк на цвета убран — он давал мигание при загрузке)
         if (this.images[colorIndex]) {
           ctx.drawImage(
@@ -310,6 +330,20 @@ window.Match3Game = {
           this.cellSize - 2, this.cellSize - 2
         );
         ctx.restore();
+      }
+    }
+
+    // Рисуем возвращающуюся фигурку
+    if (this.returningTile) {
+      const rt = this.returningTile;
+      const colorIndex = this.board[rt.row][rt.col];
+
+      if (colorIndex !== -1 && this.images[colorIndex]) {
+        ctx.drawImage(
+          this.images[colorIndex],
+          rt.currentX, rt.currentY,
+          this.cellSize - 2, this.cellSize - 2
+        );
       }
     }
 
@@ -366,12 +400,30 @@ document.addEventListener('touchend', function(e) {
     const endCol = Math.floor((e.changedTouches[0].clientX - rect.left) / scale / Match3Game.cellSize);
     const endRow = Math.floor((e.changedTouches[0].clientY - rect.top) / scale / Match3Game.cellSize);
 
-    // Если бросили в пределах поля и это не та же клетка
+    // Свап засчитывается, только если бросили в другую клетку внутри поля
+    let swapHappened = false;
     if (endRow >= 0 && endRow < Match3Game.rows && endCol >= 0 && endCol < Match3Game.cols) {
       if (endRow !== Match3Game.draggedTile.row || endCol !== Match3Game.draggedTile.col) {
         Match3Game.swapTiles(Match3Game.draggedTile.row, Match3Game.draggedTile.col, endRow, endCol);
+        swapHappened = true;
       }
     }
+
+    // Бросили на то же место или за пределы поля — плавно возвращаем фигурку
+    if (!swapHappened) {
+      const scale = rect.width / 320;
+
+      // Сохраняем текущие координаты (где палец) и целевые (откуда взяли)
+      Match3Game.returningTile = {
+        row: Match3Game.draggedTile.row,
+        col: Match3Game.draggedTile.col,
+        currentX: (Match3Game.dragX - rect.left) / scale - Match3Game.cellSize / 2,
+        currentY: (Match3Game.dragY - rect.top) / scale - Match3Game.cellSize / 2,
+        targetX: Match3Game.offsetX + Match3Game.draggedTile.col * Match3Game.cellSize,
+        targetY: Match3Game.offsetY + Match3Game.draggedTile.row * Match3Game.cellSize
+      };
+    }
+
     Match3Game.draggedTile = null; // Отпустили
     Match3Game.touchStartX = null;
     Match3Game.touchStartY = null;

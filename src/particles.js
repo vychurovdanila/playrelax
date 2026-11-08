@@ -57,11 +57,11 @@ window.Particles = (function () {
     const p = acquire();
     p.x = x;
     p.y = y;
-    p.vx = (Math.random() - 0.5) * 2 * SPREAD; // Разлет в стороны
-    p.vy = (Math.random() - 0.5) * 2 * SPREAD + RISE; // Легкий подъем вверх
+    p.vx = (Math.random() - 0.5) * 2 * SPREAD * 1.2; // Разлет в стороны (+20% скорости шлейфа)
+    p.vy = (Math.random() - 0.5) * 2 * SPREAD * 1.2 + RISE; // Легкий подъем вверх (+20% скорости)
     p.life = 1.0; // Жизнь от 1 до 0
     p.decay = DECAY_SLOW + Math.random() * (DECAY_FAST - DECAY_SLOW);
-    p.size = SIZE_MIN + Math.random() * (SIZE_MAX - SIZE_MIN); // Разный размер
+    p.size = (SIZE_MIN + Math.random() * (SIZE_MAX - SIZE_MIN)) * 1.2; // Разный размер (+20% крупнее)
     p.color = color;
     p.blur = 0; // Без размытия по умолчанию (объект из пула мог нести старое значение)
 
