@@ -260,6 +260,32 @@ class AudioManager {
     this.updateUI();
   }
 
+  // Принудительно включаем случайный порядок. Проверяем флаг, потому что
+  // пользователь мог сохранить в localStorage режим «по порядку»: повторный
+  // вызов toggleShuffle() в этом случае выключил бы shuffle обратно.
+  forceShuffle() {
+    if (!this.isShuffle) this.toggleShuffle();
+  }
+
+  // Запуск музыки со случайным порядком: shuffle → unmute → play.
+  // Музыка включается всегда, даже если игрок до старта нажал «выключить звук»,
+  // иначе кнопка звука рассинхронизируется с реальным состоянием.
+  startMusic() {
+    // Плейлист грузится из playlist.json асинхронно. Если манифест ещё не
+    // пришёл, треков нет — play() зафиксирует playRequested, и музыка
+    // стартует сама, как только список будет загружен.
+    if (!Array.isArray(this.tracks) || this.tracks.length === 0) {
+      this.play(); // no-op, но фиксирует запрос на воспроизведение
+      return;
+    }
+
+    this.forceShuffle();
+    this.muted = false;
+    this.unmute();
+    this.play();
+    this.updateUI();
+  }
+
   // Обновляем вид кнопки звука (если DOM доступен).
   // Кнопок переключения трека и shuffle больше нет — обновляем только #btn-unmute.
   updateUI() {

@@ -1390,40 +1390,9 @@ window.addEventListener('resize', resizeCanvas);
 /* ============================================================
    Музыка: кнопок переключения/паузы/shuffle больше нет — осталась
    одна кнопка вкл/выкл звука (#btn-unmute).
-   Порядок треков СЛУЧАЙНЫЙ по умолчанию (см. forceShuffle).
+   Порядок треков СЛУЧАЙНЫЙ по умолчанию (см. AudioManager.forceShuffle
+   в src/audio.js).
    ============================================================ */
-
-// Принудительно включаем случайный порядок одним вызовом toggleShuffle().
-// isShuffle по умолчанию false, но пользователь мог сохранить в localStorage
-// режим «по порядку» — поэтому проверяем флаг и переключаем только если нужно.
-// Своего метода включения нет: используем существующий API audio.js.
-function forceShuffle(manager) {
-  if (!manager) return;
-  if (typeof manager.toggleShuffle !== 'function') return;
-  if (manager.isShuffle) return; // уже случайный — второй вызов выключил бы его
-  manager.toggleShuffle();
-}
-
-// Запуск музыки со случайным порядком: shuffle → play.
-// Музыка включается всегда, даже если игрок до старта нажал «выключить звук»,
-// иначе кнопка звука рассинхронизируется с реальным состоянием.
-function startMusic(manager) {
-  if (!manager) return;
-
-  // Плейлист грузится из playlist.json асинхронно. Если манифест ещё не
-  // пришёл, треков нет — просто выходим: play() выставит playRequested,
-  // и музыка стартует сама, как только список будет загружен.
-  if (!Array.isArray(manager.tracks) || manager.tracks.length === 0) {
-    manager.play(); // no-op, но фиксирует запрос на воспроизведение
-    return;
-  }
-
-  forceShuffle(manager);
-  manager.muted = false;
-  manager.unmute();
-  manager.play();
-  updateUnmuteUI();
-}
 
 // Кнопка вкл/выкл звука.
 const btnUnmute = document.getElementById('btn-unmute');
@@ -1447,7 +1416,7 @@ if (btnUnmute) {
     // Первый тап может случиться до старта игры: Howl ещё не создан.
     if (!manager.inited) manager.init();
     // Музыка не играла (пауза/ещё не стартовала) — включаем её.
-    if (!manager.playing) forceShuffle(manager);
+    if (!manager.playing) manager.forceShuffle();
 
     if (manager.muted) {
       manager.unmute();
@@ -1611,7 +1580,7 @@ document.addEventListener('DOMContentLoaded', () => {
       gameCanvas.style.pointerEvents = 'auto';
       
       // 3. Запускаем звук: случайный порядок треков + воспроизведение.
-      startMusic(window.audioManager);
+      if (window.audioManager) window.audioManager.startMusic();
     });
   }
 });
