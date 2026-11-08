@@ -20,6 +20,8 @@ window.Match3Game = {
   ],
   images: [], // Сюда загрузятся сами картинки
   isLoaded: false, // Флаг: все картинки загружены
+  visualY: [], // Смещение кубика по Y в пикселях (для плавного падения)
+  velY: [],    // Скорость падения
 
   init: function() {
     if (this.images.length === 0) {
@@ -49,6 +51,10 @@ window.Match3Game = {
         this.board.push(row);
       }
 
+      // Массивы физики: смещение и скорость для каждого кубика
+      this.visualY = Array.from({ length: this.rows }, () => new Array(this.cols).fill(0));
+      this.velY = Array.from({ length: this.rows }, () => new Array(this.cols).fill(0));
+
       // Убираем готовые линии на старте: чистим и досыпаем, пока есть совпадения.
       // Ограничение попыток — страховка от зацикливания (браузер не зависнет).
       let safetyCounter = 0;
@@ -62,6 +68,24 @@ window.Match3Game = {
   update: function() {
     // Защита: если поле еще не создано, выходим
     if (!this.board || this.board.length === 0) return;
+
+    let isFalling = false;
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (this.visualY[r][c] < 0) {
+          this.velY[r][c] += 1.5; // Ускорение свободного падения
+          this.visualY[r][c] += this.velY[r][c];
+          isFalling = true;
+          if (this.visualY[r][c] >= 0) {
+            this.visualY[r][c] = 0; // Приземлился
+            this.velY[r][c] = 0;
+          }
+        }
+      }
+    }
+
+    // Если что-то падает, не проверяем совпадения, пока не упадет всё
+    if (isFalling) return;
 
     // 1. Проверяем, есть ли совпадения (каскады после падения)
     if (this.checkMatches()) {
@@ -189,11 +213,16 @@ window.Match3Game = {
           // Двигаем кубик вниз на количество пустых мест
           this.board[r + emptySpaces][c] = this.board[r][c];
           this.board[r][c] = -1;
+          // Задаем визуальное смещение (отрицательное, чтобы кубик отрисовался выше)
+          this.visualY[r + emptySpaces][c] = -emptySpaces * this.cellSize;
+          this.velY[r + emptySpaces][c] = 0; // Сбрасываем скорость
         }
       }
       // Заполняем пустые места сверху новыми случайными кубиками
       for (let r = 0; r < emptySpaces; r++) {
         this.board[r][c] = Math.floor(Math.random() * this.colors.length);
+        this.visualY[r][c] = -(emptySpaces - r) * this.cellSize; // Появляются сверху экрана
+        this.velY[r][c] = 0;
       }
     }
   },
@@ -215,7 +244,7 @@ window.Match3Game = {
           ctx.drawImage(
             this.images[colorIndex],
             this.offsetX + c * this.cellSize + 1,
-            this.offsetY + r * this.cellSize + 1,
+            this.offsetY + r * this.cellSize + this.visualY[r][c] + 1, // <-- Добавили visualY
             this.cellSize - 2,
             this.cellSize - 2
           );
@@ -228,6 +257,11 @@ window.Match3Game = {
 document.addEventListener('touchstart', function(e) {
   if (window.App && window.App.currentGame !== 'match3') return;
   if (e.touches.length > 1) return;
+
+  // Проверяем, есть ли падающие кубики
+  let isFalling = Match3Game.visualY.some(row => row.some(v => v < 0));
+  if (isFalling) return; // Если падают — игнорируем свайп
+
   Match3Game.touchStartX = e.touches[0].clientX;
   Match3Game.touchStartY = e.touches[0].clientY;
 });
