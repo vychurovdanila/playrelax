@@ -165,11 +165,11 @@ window.Particles = (function () {
 
       p.vx = Math.cos(angle) * speed;
       p.vy = Math.sin(angle) * speed; // Летят вверх
-      p.life = 1.5 + Math.random() * 0.5; // Живут недолго
-      p.decay = 0.006 + Math.random() * 0.008; // Гаснут быстро, но заметно (≈35–80 кадров)
+      p.life = 1.5 + Math.random() * 0.7; // Живут недолго
+      p.decay = 0.005 + Math.random() * 0.007; // Гаснут быстро, но заметно (≈35–80 кадров)
       // Размер заметный: при рендере радиус = size * life, поэтому 2.2–4.2 даёт
       // видимые искры 2–4 px в первый кадр (для сравнения: шлейф Size_MAX = 2.6).
-      p.size = 0.9 + Math.random() * 0.9;
+      p.size = 0.95 + Math.random() * 0.95;
       p.color = color;
       particles.push(p);
     }
