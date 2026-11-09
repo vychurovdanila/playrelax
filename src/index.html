@@ -55,21 +55,27 @@
 
     <div id="ob-text-container"></div>
 
+    <!-- Экран 13: открытые скобки, внутри бегущая строка «свайп двумя
+         пальцами», ниже — подсказка-анимация двух пальцев. По свайпу/тапу
+         открывается карусель занятий (экраны 14-15). -->
     <div id="ob-interaction-area" style="display: none;">
-      <div class="ob-marquee">СВАЙП ДВУМЯ ПАЛЬЦАМИ ПО ГОРИЗОНТАЛИ</div>
+      <div id="ob-swipe-bar" class="ob-swipe-bar">
+        <img src="assets/ui/bracket-left.svg" class="ob-bracket ob-swipe-bracket" alt="">
+        <span class="ob-swipe-text">свайп двумя пальцами</span>
+        <img src="assets/ui/bracket-right.svg" class="ob-bracket ob-swipe-bracket" alt="">
+      </div>
       <img src="assets/ui/2fingers.svg" id="ob-hint" style="display: none;" alt="">
 
-      <div id="ob-carousel" style="display: none;">
+      <div id="ob-carousel">
         <div class="ob-arrow" id="ob-prev">&lt;</div>
         <div class="ob-carousel-item">
           <img src="assets/ui/build.svg" id="ob-item-img" alt="">
-          <div id="ob-item-text">СТРОИТЬ</div>
         </div>
         <div class="ob-arrow" id="ob-next">&gt;</div>
       </div>
     </div>
 
-    <img src="assets/ui/startbutton.svg" id="ob-start-btn" style="display: none;" alt="Начать">
+    <img src="assets/ui/startbutton.svg" id="ob-start-btn" alt="Начать">
   </div>
 
   <!-- ГЛАВНОЕ МЕНЮ (пиксельный дизайн из прототипов).
