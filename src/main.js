@@ -11,6 +11,12 @@ window.App = {
   canvas: document.getElementById('game'),
   ctx: document.getElementById('game').getContext('2d'),
 
+  // suspended — «игра на паузе до старта». Пока true, цикл не обновляет и не
+  // рисует игровые модули, а только частицы. Ставится онбордингом: иначе
+  // тетрис работал в фоне и сыпал частицы шлейфа прямо во время сцены
+  // (искры летели ещё до взрыва текста).
+  suspended: false,
+
   init: function() {
     this.loop();
   },
@@ -19,6 +25,9 @@ window.App = {
   // и показ канваса обслуживал обработчик в src/tetris.js — теперь меню
   // #ui-layer, поэтому запуск передаётся сюда (см. DOMContentLoaded ниже).
   startGame: function(gameName) {
+    // Снимаем приостановку: цикл снова обновляет и рисует игру.
+    this.suspended = false;
+
     // Переключаем текущую игру и чистим экран
     this.switchGame(gameName);
 
@@ -42,6 +51,17 @@ window.App = {
 
     // Очистка экрана
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Онбординг: игры не обновляются/не рисуются, но частицы — да.
+    // Частицы рисуются здесь, а не своим циклом в onboarding.js, потому что
+    // это единственный владелец requestAnimationFrame и очистки канваса:
+    // второй цикл конфликтовал бы (два clearRect за кадр).
+    if (this.suspended) {
+      if (window.Particles && window.Particles.count()) {
+        window.Particles.update(this.ctx);
+      }
+      return;
+    }
 
     if (this.currentGame === 'tetris' && window.TetrisGame) {
       window.TetrisGame.update();
