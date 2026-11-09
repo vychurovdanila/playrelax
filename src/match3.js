@@ -188,14 +188,42 @@ window.Match3Game = {
     }
   },
 
+  // Проверяет, есть ли линия из 3+ одинаковых кубиков, проходящая через клетку (r, c).
+  // Нужна для swapTiles: обмен засчитывается только если линия появилась
+  // именно в клетках обмена, а не где-то ещё на доске.
+  // ВНИМАНИЕ: ничего не разрушает (в отличие от checkMatches).
+  hasLineAt: function(r, c) {
+    if (!this.board || this.board.length === 0) return false;
+
+    const color = this.board[r][c];
+    if (color === -1) return false;
+
+    // Считаем одинаковые кубики влево и вправо от (r, c)
+    let horizontal = 1;
+    for (let i = c - 1; i >= 0 && this.board[r][i] === color; i--) horizontal++;
+    for (let i = c + 1; i < this.cols && this.board[r][i] === color; i++) horizontal++;
+    if (horizontal >= 3) return true;
+
+    // Считаем одинаковые кубики вверх и вниз от (r, c)
+    let vertical = 1;
+    for (let i = r - 1; i >= 0 && this.board[i][c] === color; i--) vertical++;
+    for (let i = r + 1; i < this.rows && this.board[i][c] === color; i++) vertical++;
+    if (vertical >= 3) return true;
+
+    return false;
+  },
+
   // Возвращает true, если обмен состоялся (создал линию), иначе false.
   swapTiles: function(r1, c1, r2, c2) {
     let temp = this.board[r1][c1];
     this.board[r1][c1] = this.board[r2][c2];
     this.board[r2][c2] = temp;
 
-    // Обмен засчитывается только если он создал линию: иначе возвращаем всё назад
-    if (!this.checkMatches()) {
+    // Обмен засчитывается, только если линия появилась В КЛЕТКАХ ОБМЕНА.
+    // Проверяем именно (r1,c1) и (r2,c2): иначе чужая тройка в другом месте
+    // доски «подтверждала» бы неудачный обмен, и фигурка не возвращалась.
+    if (!this.hasLineAt(r1, c1) && !this.hasLineAt(r2, c2)) {
+      // Линии нет — откатываем ход
       let tempBack = this.board[r1][c1];
       this.board[r1][c1] = this.board[r2][c2];
       this.board[r2][c2] = tempBack;
