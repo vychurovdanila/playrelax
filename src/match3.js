@@ -37,14 +37,9 @@ window.Match3Game = {
   // Возврат фигурки на место, если её бросили не в ту клетку
   returningTile: null, // { row, col, startX, startY, currentX, currentY, targetX, targetY, t }
 
-  // Длительность возврата в кадрах (при 60 fps: 45 ≈ 0.75 сек).
-  // Меняй это число, чтобы ускорить/замедлить возврат.
-  returnDuration: 45,
-
-  // Минимальное стартовое смещение фигурки от клетки (в пикселях канваса).
-  // Нужно потому, что при отпускании пальца ровно над клеткой фигурка
-  // визуально уже стоит на месте — без этого смещения анимации не видно.
-  returnMinOffset: 14,
+  // Длительность возврата в кадрах. 60 кадров = ровно 1 секунда при 60 fps.
+  // Меняй это число, чтобы ускорить/замедлить возврат фигурки.
+  returnDuration: 60,
 
   init: function() {
     if (this.images.length === 0) {
@@ -193,6 +188,7 @@ window.Match3Game = {
     }
   },
 
+  // Возвращает true, если обмен состоялся (создал линию), иначе false.
   swapTiles: function(r1, c1, r2, c2) {
     let temp = this.board[r1][c1];
     this.board[r1][c1] = this.board[r2][c2];
@@ -203,7 +199,9 @@ window.Match3Game = {
       let tempBack = this.board[r1][c1];
       this.board[r1][c1] = this.board[r2][c2];
       this.board[r2][c2] = tempBack;
+      return false; // Обмена не было
     }
+    return true; // Обмен состоялся
   },
 
   checkMatches: function() {
@@ -416,49 +414,36 @@ document.addEventListener('touchend', function(e) {
     const endCol = Math.floor((e.changedTouches[0].clientX - rect.left) / scale / Match3Game.cellSize);
     const endRow = Math.floor((e.changedTouches[0].clientY - rect.top) / scale / Match3Game.cellSize);
 
+    const fromRow = Match3Game.draggedTile.row;
+    const fromCol = Match3Game.draggedTile.col;
+
+    // Обмен засчитывается, ТОЛЬКО если он реально состоялся (создал линию).
+    // swapTiles возвращает false, когда откатила ход — тогда нужен возврат.
     let didSwap = false;
-    // Если бросили в пределах поля и это не та же клетка
     if (endRow >= 0 && endRow < Match3Game.rows && endCol >= 0 && endCol < Match3Game.cols) {
-      if (endRow !== Match3Game.draggedTile.row || endCol !== Match3Game.draggedTile.col) {
-        // Пытаемся свапнуть
-        Match3Game.swapTiles(Match3Game.draggedTile.row, Match3Game.draggedTile.col, endRow, endCol);
-        didSwap = true;
+      if (endRow !== fromRow || endCol !== fromCol) {
+        didSwap = Match3Game.swapTiles(fromRow, fromCol, endRow, endCol);
       }
     }
 
-    // Если свапа не было (или бросили мимо) — запускаем анимацию возврата
+    // Обмена не было (бросили мимо, в ту же клетку или ход откатился) —
+    // плавно возвращаем фигурку в её клетку из точки, где отпустили палец.
     if (!didSwap) {
       // Куда фигурка должна вернуться (позиция её родной клетки)
-      const targetX = Match3Game.offsetX + Match3Game.draggedTile.col * Match3Game.cellSize;
-      const targetY = Match3Game.offsetY + Match3Game.draggedTile.row * Match3Game.cellSize;
+      const targetX = Match3Game.offsetX + fromCol * Match3Game.cellSize;
+      const targetY = Match3Game.offsetY + fromRow * Match3Game.cellSize;
 
       // Откуда она стартует — точка, где палец отпустили
       const startX = (e.changedTouches[0].clientX - rect.left) / scale - Match3Game.cellSize / 2;
       const startY = (e.changedTouches[0].clientY - rect.top) / scale - Match3Game.cellSize / 2;
 
-      // Смещение не должно быть слишком маленьким, иначе анимация «не видна»
-      const dx = startX - targetX;
-      const dy = startY - targetY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      let fromX = startX;
-      let fromY = startY;
-
-      if (dist < Match3Game.returnMinOffset) {
-        // Направление оттягивания: если фигурку не двигали — уводим её чуть вверх
-        let nx = dist > 0.01 ? dx / dist : 0;
-        let ny = dist > 0.01 ? dy / dist : -1;
-
-        fromX = targetX + nx * Match3Game.returnMinOffset;
-        fromY = targetY + ny * Match3Game.returnMinOffset;
-      }
-
       Match3Game.returningTile = {
-        row: Match3Game.draggedTile.row,
-        col: Match3Game.draggedTile.col,
-        startX: fromX,
-        startY: fromY,
-        currentX: fromX,
-        currentY: fromY,
+        row: fromRow,
+        col: fromCol,
+        startX: startX,
+        startY: startY,
+        currentX: startX,
+        currentY: startY,
         targetX: targetX,
         targetY: targetY,
         t: 0 // Прогресс анимации: 0 — старт, 1 — на месте
