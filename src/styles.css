@@ -354,8 +354,6 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
 }
 
 /* ---------- Кинематографичный онбординг ---------- */
-/* Полноэкранная сцена поверх всего (z-index: 2000 — выше меню и кнопок).
-   Живёт только до нажатия [ В ПУТЬ ], дальше её прячет src/onboarding.js. */
 #onboarding-screen {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
   background: #000; z-index: 2000; display: flex; flex-direction: column;
@@ -364,32 +362,53 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   font-family: 'Tiny5', monospace; color: white;
 }
 
-/* Постепенное «приоткрывание» видеофона под сценой. */
 #onboarding-screen.bg-20 { background-color: rgba(0, 0, 0, 0.8); }
 #onboarding-screen.bg-50 { background-color: rgba(0, 0, 0, 0.5); }
 
+/* Контейнер логотипа, который двигается наверх */
 #onboarding-logo {
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 50px; transition: transform 1s ease, filter 1s ease;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  transition: top 1.5s ease, transform 1.5s ease, filter 1s ease;
+  z-index: 10;
 }
 
-/* Класс для ухода логотипа влево и обесцвечивания. */
-#onboarding-logo.fade-left {
-  transform: translateX(-100px); filter: grayscale(1) opacity(0.5);
-}
+/* Скобки вложены (изначально) */
+.ob-bracket { width: 40px; transition: transform 1s ease; }
+#ob-left { transform: translateX(20px); }
+#ob-right { transform: translateX(-20px); }
+.ob-text { width: 200px; opacity: 0; transition: opacity 1s ease; padding: 0 10px; }
 
-.ob-bracket { width: 30px; transition: transform 0.5s ease; }
-.ob-text { width: 200px; opacity: 0; transition: opacity 0.5s ease; padding: 0 10px; }
-
+/* Состояние "Открыто" */
 #onboarding-logo.open #ob-left { transform: translateX(-20px); }
 #onboarding-logo.open #ob-right { transform: translateX(20px); }
 #onboarding-logo.open .ob-text { opacity: 1; }
 
+/* Состояние "Наверху" (когда скобки закрылись и уехали наверх) */
+#onboarding-logo.move-top {
+  top: 50px; /* Уезжает вверх */
+  transform: translate(-50%, 0);
+}
+#onboarding-logo.move-top #ob-left { transform: translateX(20px); } /* Снова закрылись */
+#onboarding-logo.move-top #ob-right { transform: translateX(-20px); }
+#onboarding-logo.move-top .ob-text { opacity: 0; } /* Текст скрылся */
+
+/* Состояние "Улетел влево и обесцветился" */
+#onboarding-logo.fade-left {
+  transform: translate(-150%, 0); /* Уходит за левый край */
+  filter: grayscale(1) opacity(0.3);
+}
+
+/* Контейнер для текста */
 #onboarding-text-container {
   text-align: left; max-width: 320px; width: 100%;
   padding: 0 20px; box-sizing: border-box;
   font-size: 18px; line-height: 1.4; letter-spacing: 1px;
+  opacity: 0; transition: opacity 1s ease;
 }
+#onboarding-text-container.show { opacity: 1; }
 
 .ob-line { margin-bottom: 15px; transition: color 0.5s ease, opacity 0.5s ease; }
 .ob-line.active { color: #ffffff; }
@@ -397,8 +416,8 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
 .ob-line.hidden { opacity: 0; }
 
 #ob-final-btn {
-  display: none; margin-top: 40px; padding: 10px 30px;
-  font-size: 24px; background: transparent; color: white;
+  display: none; position: absolute; bottom: 10%;
+  padding: 15px 40px; font-size: 24px; background: transparent; color: white;
   border: 2px solid white; font-family: 'Tiny5', monospace;
   cursor: pointer; transition: all 0.3s;
 }
