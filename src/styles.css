@@ -1,4 +1,4 @@
-/* ---------- База (перенесено из прототипа) ---------- */
+﻿/* ---------- База (перенесено из прототипа) ---------- */
 html, body {
   margin: 0;
   padding: 0;
@@ -353,54 +353,85 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   transform: scale(1.05);
 }
 
-/* ---------- Кинематографичный онбординг (по прототипам prototype/1–10.jpg) ----------
-   Кадры прототипа (мобильный макет 400×860):
-     1–3  — только ВЛОЖЕННАЯ скобка в центре: белая ⟨ снаружи, зелёная ⟩ внутри,
-            зазор между ними ≈2px. Логотипа нет.
-     2    — скобки раскрылись, между ними проявился логотип [ PLAY RELAX ]
-            (узел ≈90×40px, центр экрана).
-     4–5  — узел уехал наверх (top ≈27px) и снова закрылся; первая фраза
-            появляется слева (padding 38px) на высоте ≈43% экрана.
-     6–9  — фразами, видна группа из ТРЁХ строк: активная белая, над ней
-            серая, верхняя ушла в opacity 0. Интервал между строками ≈74px.
-     10   — фон = ВИДЕО (чёрной плашки нет), логотип у левого верха серый,
-            кнопка «[ В ПУТЬ ]» по центру внизу БЕЗ рамки.
-   Ключевые числа (пересчёт из макета 400×860 на CSS):
-     логотип-узел:            width 90px, высота 40px
-     вложенные скобки:        зазор 2px (сдвиг ±11px при ширине скобки 22px)
-     раскрытые скобки:        сдвиг ±48px от центра
-     узел наверху:            top 27px
-     фразы:                   font-size 15px, line-height 1.15, шаг 74px,
-                              слева 38px, первый блок начинается на 43% высоты */
+/* ================= ОНБОРДИНГ (15-шаговый сценарий) ================= */
 
 #onboarding-screen {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
-  background: #000; z-index: 2000;
-  transition: opacity 1s ease, background-color 1s ease;
+  z-index: 2000; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; overflow: hidden;
   font-family: 'Tiny5', monospace; color: white;
 }
 
-/* Уровни затемнения. bg-20 — мягкое затемнение на время печати фраз
-   (фон ещё чёрный, как на кадрах 5–9). bg-50 — финал: плашка становится
-   почти прозрачной, чтобы сквозь неё было видно ВИДЕО (кадр 10 прототипа,
-   там видеофон и кнопка «[ В ПУТЬ ]» на его фоне). */
-#onboarding-screen.bg-20 { background-color: rgba(0, 0, 0, 0.85); }
-#onboarding-screen.bg-50 { background-color: rgba(0, 0, 0, 0); }
-
-/* Финальный фон — «живое» видео (кадр 10 прототипа: видео резкое
-   и не затемнено, кнопка [ В ПУТЬ ] лежит прямо на нём).
-   #onboarding-screen идёт в разметке ПОСЛЕ .bg-video, поэтому комбинатор ~
-   тут не работает — состояние помечаем атрибутом body из onboarding.js. */
-body[data-onboarding="final"] .bg-iframe {
-  filter: blur(0);
+.ob-vignette {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: #000; transition: background 1s ease; z-index: -1;
 }
 
-/* Канвас частиц должен быть ВИДЕН во время онбординга.
-   Иначе взрыв текста (Particles.spawnExplosion) рисуется в полностью
-   прозрачный канвас под экраном онбординга (z-index 2000) и его не видно.
-   Селектор привязан к атрибуту body[data-onboarding], который ставит
-   onboarding.js на время сцены и снимает при переходе в игру — иначе
-   канвас остался бы непрозрачным и в самой игре (там нужен opacity 0.65). */
+/* Логотип */
+#ob-logo-container {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center;
+  transition: top 1s ease, transform 1s ease, filter 0.5s ease;
+}
+#ob-logo-container.move-top { top: 50px; transform: translate(-50%, 0); }
+#ob-logo-container.fade-left { transform: translate(-150%, 0); filter: grayscale(1) opacity(0.3); top: 50px; }
+
+.ob-brackets { display: flex; align-items: center; justify-content: center; position: relative; }
+.ob-bracket { width: 40px; transition: transform 1s ease; position: absolute; }
+.ob-logo-img { width: 200px; opacity: 0; transition: opacity 1s ease; padding: 0 20px; }
+
+/* Состояния скобок */
+#ob-left { transform: translateX(20px); }
+#ob-right { transform: translateX(-20px); }
+.ob-brackets.open #ob-left { transform: translateX(-60px); }
+.ob-brackets.open #ob-right { transform: translateX(60px); }
+.ob-brackets.open .ob-logo-img { opacity: 1; }
+
+/* Текст */
+#ob-text-container {
+  position: absolute; top: 30%; display: flex; flex-direction: column;
+  align-items: flex-start; width: 320px; padding: 0 20px;
+}
+.ob-line { margin-bottom: 15px; transition: all 0.5s ease; font-size: 18px; }
+.ob-line.op-100 { opacity: 1; color: #fff; }
+.ob-line.op-50 { opacity: 0.5; }
+.ob-line.op-25 { opacity: 0.25; }
+.ob-line.op-0 { opacity: 0; }
+
+/* Подпись под логотипом. В .ob-line / #ob-typing-subtext пустой блок без
+   текста не занимает высоты, поэтому подпись держим на фиксированной
+   высоте и центрируем — иначе логотип «прыгает» при печати/стирании. */
+#ob-typing-subtext {
+  font-size: 16px; margin-top: 10px; color: #00ff00;
+  min-height: 1.2em; text-align: center; white-space: nowrap;
+}
+
+/* Интерактив */
+#ob-interaction-area { display: flex; flex-direction: column; align-items: center; margin-top: 100px; }
+.ob-marquee { font-size: 14px; margin-bottom: 20px; }
+#ob-hint { width: 60px; margin-bottom: 20px; animation: pulse 1.5s infinite; }
+
+#ob-carousel { display: flex; align-items: center; gap: 20px; }
+.ob-arrow { font-size: 30px; color: #00ff00; cursor: pointer; }
+.ob-carousel-item { display: flex; flex-direction: column; align-items: center; }
+#ob-item-img { width: 80px; margin-bottom: 10px; }
+
+#ob-start-btn {
+  position: absolute; bottom: 50px; width: 200px; cursor: pointer;
+  filter: drop-shadow(0 0 10px #fff); transition: transform 0.2s;
+}
+#ob-start-btn:hover { transform: scale(1.05); }
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+.bg-blur { filter: blur(10px) brightness(0.5); }
+
+/* ---------- Интеграция сцены с игровым слоем ----------
+   Канвас частиц обязан быть ВИДЕН во время онбординга: взрыв текста и
+   кнопки старта рисуется на #game, а экран онбординга идёт выше (z-index:
+   2000). Без этого правила искры уходят в скрытый канвас. Атрибут
+   body[data-onboarding] ставит src/onboarding.js на время сцены и снимает
+   при переходе в игру (в игре канвасу нужен его обычный opacity). */
 body[data-onboarding] canvas {
   opacity: 1;
   pointer-events: none;
@@ -409,126 +440,7 @@ body[data-onboarding] canvas {
   border-color: transparent;
 }
 
-/* ---------- Узел логотипа ---------- */
-#onboarding-logo {
-  position: absolute;
-  /* Центр узла в центре экрана: ширина 150px, поэтому left: calc(50% - 75px).
-     В прототипе (кадр 2) логотип шире зазора скобок и упирается в них,
-     поэтому узел шире, чем 90px: 150px даёт логотипу ≈106px по пропорции. */
-  left: calc(50% - 75px);
-  top: calc(50% - 20px);
-  width: 150px; height: 40px;
-  transition: top 1s ease, left 1s ease, width 1s ease, filter 1s ease;
-  z-index: 10;
-}
+/* Мягкое затухание экрана при уходе в игру: transition задаётся из JS
+   (screen.style.transition), здесь только страховка от мерцания. */
+#onboarding-screen { will-change: opacity; }
 
-/* Скобки — АБСОЛЮТНО спозиционированы внутри узла, чтобы текст между
-   ними не раздвигал их (в потоке логотип 200px расталкивал скобки на 300px). */
-.ob-bracket {
-  position: absolute; top: 0;
-  width: 22px; height: 40px;
-  transition: transform 1s ease;
-}
-#ob-left { left: 0; }
-#ob-right { right: 0; }
-/* Скобка RIGHT_BRACKET.svg уже зелёная — как на всех кадрах прототипа. */
-
-/* Логотип — слой МЕЖДУ скобками, скрыт до раскрытия.
-   Ширина ограничена зазором между скобками в раскрытом состоянии
-   (узел 150px минус 2 скобки по 22px = 106px). Берём 92px, чтобы остался
-   отступ по 7px с каждой стороны — в прототипе (кадр 2) логотип НЕ касается
-   скобок, а лежит между ними с запасом. */
-.ob-text {
-  position: absolute; top: 0; left: 50%;
-  width: auto; max-width: 92px; height: 40px;
-  transform: translateX(-50%);
-  object-fit: contain;
-  opacity: 0;
-  transition: opacity 1s ease;
-}
-
-/* Закрытое состояние (кадр 1): скобки вложены, зазор 2px, логотипа нет.
-   Сдвиг внутренних кромок к центру узла: левая скобка едет вправо,
-   правая — влево, так что между ними остаётся узкий просвет. */
-#onboarding-logo:not(.open):not(.move-top) #ob-left { transform: translateX(41px); }
-#onboarding-logo:not(.open):not(.move-top) #ob-right { transform: translateX(-41px); }
-/* В закрытом состоянии логотип скрыт: он шире просвета и торчал бы из скобок. */
-#onboarding-logo:not(.open) .ob-text { opacity: 0; }
-
-/* Открытое состояние (кадр 2): скобки разъезжаются к КРАЯМ узла
-   (сдвиг 0 от своей позиции), между ними проявляется логотип. */
-#onboarding-logo.open #ob-left { transform: translateX(0); }
-#onboarding-logo.open #ob-right { transform: translateX(0); }
-#onboarding-logo.open .ob-text { opacity: 1; }
-
-/* Состояние «наверху» (кадры 4–9): узел уезжает к верхнему краю и
-   снова закрывается, логотип скрывается.
-   Ширина узла сжимается до 66px (две скобки + просвет) — в прототипе
-   кадр 4 узел наверху компактный, скобки стоят вплотную. */
-#onboarding-logo.move-top {
-  top: 27px;
-  left: 30px;
-  width: 66px;
-}
-#onboarding-logo.move-top .ob-text { opacity: 0; }
-#onboarding-logo.move-top #ob-left { transform: translateX(22px); }
-#onboarding-logo.move-top #ob-right { transform: translateX(-22px); }
-
-/* Состояние «улетел влево» (кадр 10): узел остаётся видимым у левого
-   верхнего угла, но обесцвечен и приглушён — НЕ уезжает за край. */
-#onboarding-logo.fade-left {
-  filter: grayscale(1) brightness(0.55);
-  opacity: 0.65;
-}
-
-/* ---------- Текстовый блок ---------- */
-#onboarding-text-container {
-  position: absolute;
-  left: 38px;
-  /* На кадре 5 прототипа длинная фраза «ВЫИГРАТЬ ИЛИ ПРОИГРАТЬ НЕВОЗМОЖНО»
-     ломается на ДВЕ строки, поэтому ширина ограничена: 400px-макет давал
-     перенос при ≈230px текста. calc(...) держит тот же порядок и на
-     широких экранах (в прототипе колонка узкая, а не во всю ширину). */
-  top: 43%;
-  width: 230px;
-  max-width: calc(100% - 76px);
-  box-sizing: border-box;
-  font-size: 15px;
-  line-height: 1.15;
-  letter-spacing: 1px;
-  opacity: 0;
-  transition: opacity 0.6s ease;
-}
-#onboarding-text-container.show { opacity: 1; }
-
-/* Строки фразы: активная — белая, предыдущая — серая, ушедшая — прозрачная.
-   margin-bottom даёт шаг ≈74px в макете (строка ≈30px + отступ). */
-.ob-line {
-  margin-bottom: 44px;
-  white-space: normal;
-  transition: color 0.5s ease, opacity 0.5s ease;
-}
-.ob-line.active { color: #ffffff; }
-.ob-line.dimmed { color: #6a6a6a; }
-.ob-line.hidden { opacity: 0; }
-
-/* ---------- Финальная кнопка (кадр 10) ----------
-   В прототипе рамки у кнопки НЕТ: только текст [ В ПУТЬ ] по центру внизу. */
-#ob-final-btn {
-  position: absolute;
-  left: 50%;
-  bottom: 92px;
-  transform: translateX(-50%);
-  padding: 10px 20px;
-  font-size: 20px;
-  letter-spacing: 2px;
-  background: transparent;
-  color: #ffffff;
-  border: none;
-  font-family: 'Tiny5', monospace;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.6s ease, text-shadow 0.3s ease;
-}
-#ob-final-btn.show { opacity: 1; }
-#ob-final-btn:hover { text-shadow: 0 0 15px #fff; }

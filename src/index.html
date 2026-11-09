@@ -36,18 +36,40 @@
 
   <!-- КИНЕМАТОГРАФИЧНЫЙ ОНБОРДИНГ (показывается ТОЛЬКО ОДИН РАЗ).
        Живёт поверх всего (z-index: 2000) и перекрывает меню до нажатия
-       [ В ПУТЬ ]. Сценарий: створки-скобки открываются, логотип проявляется,
-       затем по одной печатаются фразы, старые строки тускнеют и исчезают,
-       после чего текст взрывается частицами, а логотип уходит влево.
+       стартовой кнопки. 15-шаговый сценарий: скобки раскрываются и проявляют
+       логотип, узел уезжает наверх, по одной печатаются фразы, старые строки
+       тускнеют и исчезают, текст взрывается частицами, логотип уходит влево.
        Управление — src/onboarding.js (window.Onboarding).
        Флаг прохождения — localStorage 'playrelax_onboarded'. -->
   <div id="onboarding-screen">
-    <div id="onboarding-logo">
-      <img src="assets/ui/LEFT_BRACKET.svg" class="ob-bracket" id="ob-left" alt="">
-      <img src="assets/ui/LOGO.svg" class="ob-text" id="ob-logo" alt="playrelax">
-      <img src="assets/ui/RIGHT_BRACKET.svg" class="ob-bracket" id="ob-right" alt="">
+    <div class="ob-vignette"></div> <!-- Черная подложка -->
+
+    <div id="ob-logo-container">
+      <div class="ob-brackets">
+        <img src="assets/ui/bracket-left.svg" id="ob-left" class="ob-bracket" alt="">
+        <img src="assets/ui/logo.svg" id="ob-logo" class="ob-logo-img" alt="playrelax">
+        <img src="assets/ui/bracket-right.svg" id="ob-right" class="ob-bracket" alt="">
+      </div>
+      <div id="ob-typing-subtext"></div>
     </div>
-    <div id="onboarding-text-container"></div>
+
+    <div id="ob-text-container"></div>
+
+    <div id="ob-interaction-area" style="display: none;">
+      <div class="ob-marquee">СВАЙП ДВУМЯ ПАЛЬЦАМИ ПО ГОРИЗОНТАЛИ</div>
+      <img src="assets/ui/2fingers.svg" id="ob-hint" style="display: none;" alt="">
+
+      <div id="ob-carousel" style="display: none;">
+        <div class="ob-arrow" id="ob-prev">&lt;</div>
+        <div class="ob-carousel-item">
+          <img src="assets/ui/build.svg" id="ob-item-img" alt="">
+          <div id="ob-item-text">СТРОИТЬ</div>
+        </div>
+        <div class="ob-arrow" id="ob-next">&gt;</div>
+      </div>
+    </div>
+
+    <img src="assets/ui/startbutton.svg" id="ob-start-btn" style="display: none;" alt="Начать">
   </div>
 
   <!-- ГЛАВНОЕ МЕНЮ (пиксельный дизайн из прототипов).

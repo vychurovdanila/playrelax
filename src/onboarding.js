@@ -1,37 +1,44 @@
-window.Onboarding = {
-  phrases: [
-    "ЭТО НЕ ИГРА",
-    "ВЫИГРАТЬ ИЛИ ПРОИГРАТЬ НЕВОЗМОЖНО",
-    "ЭТО ПУТЕШЕСТВИЕ К САМОМУ СЕБЕ",
-    "ОТКРЫВАЙ НОВЫЕ ПРОСТРАНСТВА",
-    "СОБИРАЯ ЧАСТИЦЫ СВЕТА"
-  ],
-  
-  sleep: function(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  },
+﻿window.Onboarding = {
+  phrases: ["ЭТО НЕ ИГРА", "ВЫИГРАТЬ ИЛИ ПРОИГРАТЬ НЕВОЗМОЖНО", "ЭТО ПУТЕШЕСТВИЕ К САМОМУ СЕБЕ", "ОТКРЫВАЙ НОВЫЕ ПРОСТРАНСТВА", "СОБИРАЯ ЧАСТИЦЫ СВЕТА"],
+  sleep: ms => new Promise(r => setTimeout(r, ms)),
 
-  typeText: async function(element, text) {
-    element.textContent = "";
-    for (let i = 0; i < text.length; i++) {
-      element.textContent += text[i];
-      await this.sleep(30 + Math.random() * 50); // Неравномерный набор
+  typeText: async function(el, text, speed=40) {
+    el.textContent = "";
+    for (let char of text) {
+      el.textContent += char;
+      await this.sleep(speed + Math.random() * 40);
     }
   },
 
   // Приостановка игровых модулей на время онбординга.
   // В цикле (App.loop) при suspended = true игры не обновляются и не
-  // рисуются — остаются только частицы. Так тетрис не работает в фоне и
+  // рисуются — остаются только частицы. Так match3 не работает в фоне и
   // не сыпет искры шлейфа во время сцены.
   _suspendGame: function() {
     if (window.App) window.App.suspended = true;
     if (window.Particles) window.Particles.clear(); // чистим накопленное до сцены
   },
 
+  // Взрыв частиц из точки. Канвас #game имеет внутренний размер 320×640 и
+  // свою область на экране, поэтому экранные координаты (client) переводим
+  // в систему канваса — иначе искры улетают мимо поля.
+  _explodeAt: function(clientX, clientY, amount) {
+    if (!window.Particles || !window.Particles.spawnExplosion) return;
+    const canvas = document.getElementById('game');
+    if (!canvas) return;
+    const cr = canvas.getBoundingClientRect();
+    if (!cr.width || !cr.height) return;
+    const x = (clientX - cr.left) * (canvas.width / cr.width);
+    const y = (clientY - cr.top) * (canvas.height / cr.height);
+    window.Particles.spawnExplosion(x, y, 'white', amount);
+  },
+
   start: async function() {
     const screen = document.getElementById('onboarding-screen');
-    const logo = document.getElementById('onboarding-logo');
-    const textContainer = document.getElementById('onboarding-text-container');
+    const vignette = document.querySelector('.ob-vignette');
+    const logoContainer = document.getElementById('ob-logo-container');
+    const brackets = document.querySelector('.ob-brackets');
+    const bgVideo = document.querySelector('.bg-video');
 
     // Глушим игру: её цикл продолжает обслуживать частицы (см. App.loop).
     this._suspendGame();
@@ -40,111 +47,99 @@ window.Onboarding = {
     // (см. правило body[data-onboarding] canvas в styles.css).
     document.body.setAttribute('data-onboarding', '');
 
-    // 1. Ждем 1 секунду в закрытом состоянии
-    await this.sleep(1000);
-    
-    // 2. Открываем скобки и показываем лого
-    logo.classList.add('open');
-    
-    // 3. Ждем 2 секунды
-    await this.sleep(2000);
-    
-    // 4. Закрываем скобки и уезжаем наверх
-    logo.classList.remove('open');
-    logo.classList.add('move-top');
-    
-    // Ждем, пока скобки уедут, и показываем текст.
-    // Фон НЕ затемняем: на кадрах 5–9 прототипа фон чистый чёрный,
-    // затемнение нужно только перед появлением кнопки (см. финал).
-    await this.sleep(1000);
-    textContainer.classList.add('show');
+    // Блокируем игру и размываем видео
+    if (bgVideo) bgVideo.classList.add('bg-blur');
 
-    // 5. Печатаем фразы.
-    // На кадрах 6–9 видно РОВНО ТРИ строки одновременно:
-    //   активная (белая) → над ней dimmed (серая) → выше opacity 0.
-    // Всё, что старше, уже прозрачно, поэтому класс hidden вешаем на все
-    // строки, кроме двух последних.
+    // 1. Экран 1-2: Скобки открываются
+    await this.sleep(1000);
+    brackets.classList.add('open');
+
+    // 2. Экран 3: Скобки закрываются, уходят вверх, фон 40%
+    await this.sleep(2000);
+    brackets.classList.remove('open');
+    logoContainer.classList.add('move-top');
+    vignette.style.background = 'rgba(0,0,0,0.6)';
+
+    // 3. Текст (Экраны 4-9)
+    await this.sleep(1000);
+    const textContainer = document.getElementById('ob-text-container');
     for (let i = 0; i < this.phrases.length; i++) {
       const line = document.createElement('div');
-      line.className = 'ob-line active';
+      line.className = 'ob-line op-100';
       textContainer.appendChild(line);
 
+      // Обновляем прозрачность старых строк
       const lines = textContainer.querySelectorAll('.ob-line');
-      const lastIdx = lines.length - 1;
-      lines.forEach((l, index) => {
-        if (index === lastIdx) return;               // новая строка — активная
-        if (index === lastIdx - 1) {                 // предыдущая — серая
-          l.classList.remove('active');
-          l.classList.add('dimmed');
-        } else {                                     // все остальные — прозрачные
-          l.classList.add('hidden');
-        }
+      lines.forEach((l, idx) => {
+        const diff = lines.length - 1 - idx;
+        if (diff === 1) l.className = 'ob-line op-50';
+        if (diff === 2) l.className = 'ob-line op-25';
+        if (diff === 3) l.className = 'ob-line op-0';
       });
 
       await this.typeText(line, this.phrases[i]);
-      await this.sleep(1000);
+      await this.sleep(800);
     }
 
-    // 6. Ждем 3 секунды перед взрывом
-    await this.sleep(3000);
-
-    // 7. Взрыв текста.
-    // Взрываем НЕ по одной точке на строку (тогда искры летят узкой колонной),
-    // а по нескольким точкам ВДОЛЬ каждой строки — облако накрывает текст.
-    // getBoundingClientRect даёт экранные координаты, а канвас занимает свою
-    // область и имеет внутр. размер 320×640, поэтому переводим координаты
-    // в систему канваса (иначе искры улетают мимо поля).
-    const textLines = textContainer.querySelectorAll('.ob-line');
-    const canvas = document.getElementById('game');
-    if (window.Particles && canvas) {
-      const cr = canvas.getBoundingClientRect();
-      const sx = canvas.width / cr.width;
-      const sy = canvas.height / cr.height;
-      const PER_ROW = 3;  // точек на строку
-      const PER_POINT = 16; // частиц на точку (итого ≈ 40 на строку, как раньше)
-
-      textLines.forEach(line => {
-        if (line.classList.contains('hidden')) return; // уже невидимые не взрываем
-        const r = line.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0) return;
-        for (let k = 0; k < PER_ROW; k++) {
-          // Равномерно вдоль строки: 1/6, 3/6, 5/6 ширины
-          const fx = (k * 2 + 1) / (PER_ROW * 2);
-          const x = (r.left + r.width * fx - cr.left) * sx;
-          const y = (r.top + r.height / 2 - cr.top) * sy;
-          window.Particles.spawnExplosion(x, y, 'white', PER_POINT);
-        }
+    // 4. Взрыв текста и уход лого (Экран 10)
+    await this.sleep(1000);
+    const lines = textContainer.querySelectorAll('.ob-line');
+    if (window.Particles) {
+      lines.forEach(l => {
+        const r = l.getBoundingClientRect();
+        if (!r.width || !r.height) return; // уже невидимые строки не взрываем
+        this._explodeAt(r.left + r.width / 2, r.top + r.height / 2, 40);
       });
     }
+    textContainer.style.display = 'none';
+    logoContainer.classList.add('fade-left');
+    vignette.style.background = 'rgba(0,0,0,0.8)';
 
-    // Скрываем текст, обесцвечиваем логотип, открываем видеофон.
-    textContainer.classList.remove('show');
-    logo.classList.add('fade-left');
-    screen.classList.replace('bg-20', 'bg-50');
-    // Видео за финальной кнопкой должно быть резким (кадр 10 прототипа).
-    document.body.setAttribute('data-onboarding', 'final');
+    // 5. Текст у лого (Экраны 11-12)
+    const subtext = document.getElementById('ob-typing-subtext');
+    await this.sleep(1000);
+    await this.typeText(subtext, "вызов меню", 50);
+    await this.sleep(1500);
 
-    // 8. Появление кнопки (класс .show — стили в styles.css)
-    const btn = document.createElement('button');
-    btn.id = 'ob-final-btn';
-    btn.type = 'button';
-    btn.textContent = '[ В ПУТЬ ]';
-    screen.appendChild(btn);
-    // requestAnimationFrame — чтобы transition opacity сработал (не «в один кадр»)
-    requestAnimationFrame(() => btn.classList.add('show'));
+    // Стирание (backspace)
+    for (let i = subtext.textContent.length; i >= 0; i--) {
+      subtext.textContent = subtext.textContent.substring(0, i);
+      await this.sleep(30);
+    }
+    await this.typeText(subtext, "ВЫБЕРИ ЗАНЯТИЕ И В ПУТЬ", 40);
 
-    // 9. Переход в игру
-    btn.addEventListener('click', () => {
-      localStorage.setItem('playrelax_onboarded', 'true');
-      // Игровой цикл уже работает (App.loop) — он сам подхватит игру
-      // после App.startGame(), а частицы продолжит рисовать.
-      document.body.removeAttribute('data-onboarding');
+    // 6. Убираем блюр с видео (Экран 12->13)
+    if (bgVideo) bgVideo.classList.remove('bg-blur');
+
+    // 7. Скобки открываются с текстом (Экран 13)
+    await this.sleep(1000);
+    document.getElementById('ob-text-container').style.display = 'none';
+    document.getElementById('ob-interaction-area').style.display = 'flex';
+    document.getElementById('ob-hint').style.display = 'block';
+
+    // Ждем свайпа или клика (пока имитируем клик)
+    document.getElementById('ob-hint').addEventListener('click', function showCarousel() {
+      document.getElementById('ob-hint').style.display = 'none';
+      document.querySelector('.ob-marquee').style.display = 'none';
+      document.getElementById('ob-carousel').style.display = 'flex';
+      document.getElementById('ob-start-btn').style.display = 'block';
+    });
+
+    // 8. Кнопка старт
+    const startBtn = document.getElementById('ob-start-btn');
+    startBtn.addEventListener('click', () => {
+      if (window.Particles) {
+        const r = startBtn.getBoundingClientRect();
+        this._explodeAt(r.left + r.width / 2, r.top + r.height / 2, 100);
+      }
+      screen.style.transition = 'opacity 1s ease';
       screen.style.opacity = '0';
 
       setTimeout(() => {
         screen.style.display = 'none';
+        document.body.removeAttribute('data-onboarding');
+        localStorage.setItem('playrelax_onboarded', 'true');
         window.App.startGame('match3');
-        if (window.GameAPI) window.GameAPI.togglePause();
         if (window.audioManager) window.audioManager.startMusic();
       }, 1000);
     });
