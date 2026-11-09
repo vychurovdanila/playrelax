@@ -34,6 +34,22 @@
        pointer-events: none — свайпы по канвасу проходят сквозь плашку. -->
   <div id="overlay"></div>
 
+  <!-- КИНЕМАТОГРАФИЧНЫЙ ОНБОРДИНГ (показывается ТОЛЬКО ОДИН РАЗ).
+       Живёт поверх всего (z-index: 2000) и перекрывает меню до нажатия
+       [ В ПУТЬ ]. Сценарий: створки-скобки открываются, логотип проявляется,
+       затем по одной печатаются фразы, старые строки тускнеют и исчезают,
+       после чего текст взрывается частицами, а логотип уходит влево.
+       Управление — src/onboarding.js (window.Onboarding).
+       Флаг прохождения — localStorage 'playrelax_onboarded'. -->
+  <div id="onboarding-screen">
+    <div id="onboarding-logo">
+      <img src="assets/ui/LEFT_BRACKET.svg" class="ob-bracket" id="ob-left" alt="">
+      <img src="assets/ui/LOGO.svg" class="ob-text" id="ob-logo" alt="playrelax">
+      <img src="assets/ui/RIGHT_BRACKET.svg" class="ob-bracket" id="ob-right" alt="">
+    </div>
+    <div id="onboarding-text-container"></div>
+  </div>
+
   <!-- ГЛАВНОЕ МЕНЮ (пиксельный дизайн из прототипов).
        Виден при загрузке поверх видеофона, скрывается по кнопке [ НАЧАЛО ].
        Раньше здесь был простой #start-screen с кнопкой «Начать» — заменён
@@ -90,6 +106,9 @@
   <script src="tetris.js"></script>
   <script src="match3.js"></script>
   <script src="gestures.js"></script>
+  <!-- Онбординг подключается ПЕРЕД main.js: main.js на DOMContentLoaded
+       проверяет window.Onboarding и запускает сцену при первом заходе. -->
+  <script src="onboarding.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

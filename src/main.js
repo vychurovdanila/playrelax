@@ -69,4 +69,16 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ui-layer').style.display = 'none'; // Скрываем меню
     window.App.startGame('match3');
   });
+
+  // Проверяем, проходил ли пользователь онбординг.
+  // Флаг ставит src/onboarding.js по кнопке [ В ПУТЬ ].
+  if (!localStorage.getItem('playrelax_onboarded')) {
+    // Скрываем основное меню, пока идёт онбординг
+    document.getElementById('ui-layer').style.display = 'none';
+    // Запускаем онбординг
+    if (window.Onboarding) window.Onboarding.start();
+  } else {
+    // Если уже проходил, показываем меню
+    document.getElementById('ui-layer').style.display = 'flex';
+  }
 });
