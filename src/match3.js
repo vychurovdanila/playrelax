@@ -35,7 +35,16 @@ window.Match3Game = {
   draggedTile: null, // { row, col } взятой фигурки
 
   // Возврат фигурки на место, если её бросили не в ту клетку
-  returningTile: null, // { row, col, currentX, currentY, targetX, targetY }
+  returningTile: null, // { row, col, startX, startY, currentX, currentY, targetX, targetY, t }
+
+  // Длительность возврата в кадрах (при 60 fps: 45 ≈ 0.75 сек).
+  // Меняй это число, чтобы ускорить/замедлить возврат.
+  returnDuration: 45,
+
+  // Минимальное стартовое смещение фигурки от клетки (в пикселях канваса).
+  // Нужно потому, что при отпускании пальца ровно над клеткой фигурка
+  // визуально уже стоит на месте — без этого смещения анимации не видно.
+  returnMinOffset: 14,
 
   init: function() {
     if (this.images.length === 0) {
@@ -83,16 +92,23 @@ window.Match3Game = {
     // Защита: если поле еще не создано, выходим
     if (!this.board || this.board.length === 0) return;
 
-    // Анимация плавного возврата фигурки на своё место (ease-out)
+    // Анимация плавного возврата фигурки на своё место.
+    // Позиция считается по времени (t = 0..1), а не накоплением процента:
+    // так длительность возврата не зависит от расстояния и её легко менять.
     if (this.returningTile) {
       const rt = this.returningTile;
-      // Коэффициент 1/12 (~0.083): возврат в 3 раза медленнее, чем при 0.25
-      rt.currentX += (rt.targetX - rt.currentX) * (0.25 / 3);
-      rt.currentY += (rt.targetY - rt.currentY) * (0.25 / 3);
 
-      // Если фигурка почти на месте — фиксируем и убираем
-      if (Math.abs(rt.targetX - rt.currentX) < 0.5 && Math.abs(rt.targetY - rt.currentY) < 0.5) {
+      rt.t = (rt.t || 0) + 1 / this.returnDuration; // Доля пройденного пути
+
+      if (rt.t >= 1) {
+        rt.currentX = rt.targetX;
+        rt.currentY = rt.targetY;
         this.returningTile = null; // Прибыли на место
+      } else {
+        // ease-out cubic: быстрый старт, мягкое торможение у цели
+        const k = 1 - Math.pow(1 - rt.t, 3);
+        rt.currentX = rt.startX + (rt.targetX - rt.startX) * k;
+        rt.currentY = rt.startY + (rt.targetY - rt.startY) * k;
       }
     }
 
@@ -412,13 +428,40 @@ document.addEventListener('touchend', function(e) {
 
     // Если свапа не было (или бросили мимо) — запускаем анимацию возврата
     if (!didSwap) {
+      // Куда фигурка должна вернуться (позиция её родной клетки)
+      const targetX = Match3Game.offsetX + Match3Game.draggedTile.col * Match3Game.cellSize;
+      const targetY = Match3Game.offsetY + Match3Game.draggedTile.row * Match3Game.cellSize;
+
+      // Откуда она стартует — точка, где палец отпустили
+      const startX = (e.changedTouches[0].clientX - rect.left) / scale - Match3Game.cellSize / 2;
+      const startY = (e.changedTouches[0].clientY - rect.top) / scale - Match3Game.cellSize / 2;
+
+      // Смещение не должно быть слишком маленьким, иначе анимация «не видна»
+      const dx = startX - targetX;
+      const dy = startY - targetY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      let fromX = startX;
+      let fromY = startY;
+
+      if (dist < Match3Game.returnMinOffset) {
+        // Направление оттягивания: если фигурку не двигали — уводим её чуть вверх
+        let nx = dist > 0.01 ? dx / dist : 0;
+        let ny = dist > 0.01 ? dy / dist : -1;
+
+        fromX = targetX + nx * Match3Game.returnMinOffset;
+        fromY = targetY + ny * Match3Game.returnMinOffset;
+      }
+
       Match3Game.returningTile = {
         row: Match3Game.draggedTile.row,
         col: Match3Game.draggedTile.col,
-        currentX: (e.changedTouches[0].clientX - rect.left) / scale - Match3Game.cellSize / 2,
-        currentY: (e.changedTouches[0].clientY - rect.top) / scale - Match3Game.cellSize / 2,
-        targetX: Match3Game.offsetX + Match3Game.draggedTile.col * Match3Game.cellSize,
-        targetY: Match3Game.offsetY + Match3Game.draggedTile.row * Match3Game.cellSize
+        startX: fromX,
+        startY: fromY,
+        currentX: fromX,
+        currentY: fromY,
+        targetX: targetX,
+        targetY: targetY,
+        t: 0 // Прогресс анимации: 0 — старт, 1 — на месте
       };
     }
 
