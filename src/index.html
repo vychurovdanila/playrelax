@@ -34,10 +34,45 @@
        pointer-events: none — свайпы по канвасу проходят сквозь плашку. -->
   <div id="overlay"></div>
 
-  <!-- ЭКРАН СТАРТА: виден при загрузке, скрывается по клику.
-       Тетрис (canvas) до этого невидим и не принимает клики. -->
-  <div id="start-screen">
-    <button id="start-btn" type="button">Начать</button>
+  <!-- ГЛАВНОЕ МЕНЮ (пиксельный дизайн из прототипов).
+       Виден при загрузке поверх видеофона, скрывается по кнопке [ НАЧАЛО ].
+       Раньше здесь был простой #start-screen с кнопкой «Начать» — заменён
+       на этот экран, чтобы не было дубликата id="start-btn". -->
+  <div id="ui-layer">
+    <!-- Главное меню -->
+    <div id="main-menu" class="screen active">
+      <div class="top-logo">
+        <div class="logo-title">[ PLAY RELAX ]</div>
+        <div class="logo-version">version 1</div>
+      </div>
+
+      <div class="menu-list">
+        <div class="menu-row">
+          <span class="menu-label">ВНИМАНИЕ</span>
+          <span class="menu-value"><span class="arrow">&lt;</span> match3 <span class="arrow">&gt;</span></span>
+        </div>
+        <div class="menu-row">
+          <span class="menu-label">ОКРУЖЕНИЕ</span>
+          <span class="menu-value"><span class="arrow">&lt;</span> fog forest <span class="arrow">&gt;</span></span>
+        </div>
+        <div class="menu-row">
+          <span class="menu-label">НАСТРОЕНИЕ</span>
+          <span class="menu-value"><span class="arrow">&lt;</span> quiet spring <span class="arrow">&gt;</span></span>
+        </div>
+        <div class="menu-row">
+          <span class="menu-label">ИСТОРИЯ</span>
+          <span class="menu-value"><span class="arrow">&lt;</span> something <span class="arrow">&gt;</span></span>
+        </div>
+        <div class="menu-row">
+          <span class="menu-label">ПЕРСОНА</span>
+          <span class="menu-value"><span class="arrow">&lt;</span> олень <span class="arrow">&gt;</span></span>
+        </div>
+      </div>
+
+      <div class="bottom-action">
+        <button id="start-btn" class="pixel-btn" type="button">[ НАЧАЛО ]</button>
+      </div>
+    </div>
   </div>
 
   <!-- Панель управления музыкой: осталась ОДНА кнопка — вкл/выкл звука.

@@ -15,6 +15,22 @@ window.App = {
     this.loop();
   },
 
+  // Запуск игры из главного меню. Раньше стартовый экран (#start-screen)
+  // и показ канваса обслуживал обработчик в src/tetris.js — теперь меню
+  // #ui-layer, поэтому запуск передаётся сюда (см. DOMContentLoaded ниже).
+  startGame: function(gameName) {
+    // Переключаем текущую игру и чистим экран
+    this.switchGame(gameName);
+
+    // Показываем канвас: 0.65 — подобранная прозрачность фигур,
+    // значение продублировано в src/styles.css (там стартовое 0).
+    this.canvas.style.opacity = '0.65';
+    this.canvas.style.pointerEvents = 'auto';
+
+    // Запускаем звук: случайный порядок треков + воспроизведение.
+    if (window.audioManager) window.audioManager.startMusic();
+  },
+
   switchGame: function(gameName) {
     this.currentGame = gameName;
     // Очищаем экран при переключении
@@ -46,4 +62,11 @@ window.App = {
 
 window.addEventListener('DOMContentLoaded', () => {
   window.App.init();
+
+  // Кнопка [ НАЧАЛО ] главного меню: скрываем меню и запускаем игру.
+  // Пока по умолчанию Match-3, так как он выбран в меню («ВНИМАНИЕ»).
+  document.getElementById('start-btn').addEventListener('click', () => {
+    document.getElementById('ui-layer').style.display = 'none'; // Скрываем меню
+    window.App.startGame('match3');
+  });
 });
