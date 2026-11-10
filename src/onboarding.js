@@ -145,7 +145,6 @@ window.Onboarding = {
     const screen = document.getElementById('onboarding-screen');
     const vignette = document.querySelector('.ob-vignette');
     const logoContainer = document.getElementById('ob-logo-container');
-    const brackets = document.querySelector('.ob-brackets');
     const bgVideo = document.querySelector('.bg-video');
     const textContainer = document.getElementById('ob-text-container');
     const subtext = document.getElementById('ob-typing-subtext');
@@ -166,18 +165,26 @@ window.Onboarding = {
     // полностью невидимы (по сценарию).
     if (bgVideo) bgVideo.classList.add('bg-blur');
 
-    // ---- Экран 1: скобки вплотную, чёрная подложка непрозрачна ----
+    // ---- Экран 1: скобки вложены (по центру), чёрная подложка непрозрачна.
+    //      Далее лого анимируется строго по математике: скобки 32×32
+    //      смещаются относительно центра контейнера — размеры логотипа
+    //      (.ob-logo-img) не трогаем, у него свои внутренние отступы. ----
     await this.sleep(1000);
 
-    // ---- Экран 2: скобки раздвигаются, проявляется PLAYRELAX (1 с) ----
-    brackets.classList.add('open');
+    // 1. Разъезжаются по вертикали (вложенные -> 32×58).
+    logoContainer.classList.add('split-vertical');
 
-    // ---- Пауза на развёрнутом логотипе: 2 с ----
+    await this.sleep(800);
+
+    // 2. Разъезжаются по горизонтали (32×58 -> 305×58) + проявляется логотип.
+    logoContainer.classList.add('open');
+
     await this.sleep(2000);
 
-    // ---- Экран 3: скобки закрываются, узел уезжает вверх (1 с) и
-    //      чёрный фон становится прозрачнее на 40% (0.6) ----
-    brackets.classList.remove('open');
+    // 3. Скобки смыкаются обратно и узел уезжает наверх (1 с),
+    //    чёрный фон становится прозрачнее на 40% (0.6).
+    logoContainer.classList.remove('open');
+    logoContainer.classList.remove('split-vertical');
     logoContainer.classList.add('move-top');
     vignette.style.background = 'rgba(0,0,0,0.6)';
     await this.sleep(1000);
