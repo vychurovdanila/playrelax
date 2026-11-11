@@ -98,9 +98,11 @@ window.Onboarding = {
       // в правом верхнем углу как кнопка вызова меню.
       vignette.style.background = 'transparent';
 
+      // Кнопка исчезает моментально, без плавного перехода.
+      startBtn.style.display = 'none';
+
       setTimeout(() => {
         vignette.style.display = 'none';
-        startBtn.style.display = 'none';
         textContainer.style.display = 'none';
 
         // Экран онбординга больше не перехватывает клики (можно играть),
