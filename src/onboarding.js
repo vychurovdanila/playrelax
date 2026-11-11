@@ -8,6 +8,9 @@ window.Onboarding = {
     const textContainer = document.getElementById('ob-text-container');
     const startBtn = document.getElementById('ob-start-btn');
 
+    // Разрешаем main.js рисовать частицы сцены на #fx-canvas.
+    if (window.App) window.App.fxActive = true;
+
     window.App.suspended = true; // Останавливаем игру
     if (window.Particles && window.Particles.clear) window.Particles.clear(); // Очищаем старые частицы
 
@@ -29,6 +32,10 @@ window.Onboarding = {
     await this.sleep(800);
 
     // 3. Улет в правый верхний угол (движение задается классом в CSS)
+    // Начинаем подъем: фон становится прозрачнее на 50%
+    vignette.style.background = 'rgba(0, 0, 0, 0.5)';
+
+    // Запускаем движение логотипа
     logo.classList.add('move-up-right');
     // top анимируется 0.8s, затем left — еще 0.8s (с задержкой)
     await this.sleep(1700);
@@ -86,13 +93,33 @@ window.Onboarding = {
         const r = startBtn.getBoundingClientRect();
         window.Particles.spawnExplosion(r.left + r.width/2, r.top + r.height/2, 'white', 100);
       }
-      screen.style.transition = 'opacity 1s ease';
-      screen.style.opacity = '0';
+      // Прячем только чёрный фон и кнопку — скобки остаются на экране
+      // в правом верхнем углу как кнопка вызова меню.
+      vignette.style.background = 'transparent';
 
       setTimeout(() => {
-        screen.style.display = 'none';
+        vignette.style.display = 'none';
+        startBtn.style.display = 'none';
+        textContainer.style.display = 'none';
+
+        // Экран онбординга больше не перехватывает клики (можно играть),
+        // но скобкам кликабельность оставляем (см. styles.css)
+        screen.style.pointerEvents = 'none';
+
         window.App.suspended = false; // Включаем игру обратно
         window.App.startGame('match3');
+
+        // Даем искрам от кнопки догореть 5 секунд
+        setTimeout(() => {
+          if (window.App) window.App.fxActive = false;
+          // Очищаем холст частиц
+          const fxCanvas = document.getElementById('fx-canvas');
+          if (fxCanvas) {
+            const fxCtx = fxCanvas.getContext('2d');
+            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+          }
+        }, 5000);
+
         if (window.audioManager) window.audioManager.startMusic();
       }, 1000);
     });

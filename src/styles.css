@@ -357,11 +357,14 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
   z-index: 2000; overflow: hidden;
   font-family: 'Tiny5', monospace; color: #fff;
+  /* После запуска игры экран не перехватывает клики;
+     кликабельные дети (скобки, кнопка) задают pointer-events: auto */
+  pointer-events: none;
 }
 
 .ob-vignette {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: #000; transition: background 1s ease; z-index: 0;
+  background: #000; transition: background 0.8s ease; z-index: 0;
 }
 
 /* Логотип */
@@ -372,7 +375,9 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   display: flex; 
   flex-direction: column; 
   align-items: center;
-  z-index: 3;
+  /* Скобки остаются поверх игры как кнопка вызова меню */
+  z-index: 3000;
+  pointer-events: auto;
   transition: top 0.8s ease, left 0.8s ease, right 0.8s ease, transform 0.8s ease;
 }
 
@@ -385,6 +390,14 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   
   /* Анимируем top и right (с задержкой для right) */
   transition: top 0.8s ease, right 0.8s ease 0.8s;
+}
+
+/* Во время движения вправо правая скобка становится белой и полупрозрачной.
+   #ob-left не трогаем — левая скобка остается зеленой. */
+#ob-logo-container.move-up-right #ob-right {
+  filter: brightness(0) invert(1); /* Делаем полностью белой */
+  opacity: 0.6; /* Прозрачность 60% */
+  transition: opacity 0.8s ease, filter 0.8s ease;
 }
 
 /* Скобки и логотип позиционируются НАПРЯМУЮ от #ob-logo-container:
@@ -461,6 +474,9 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   filter: drop-shadow(0 0 10px rgba(255,255,255,0.85));
   animation: btn-glow 1.6s infinite;
   z-index: 6;
+  /* Родитель #onboarding-screen имеет pointer-events: none — кнопке
+     возвращаем кликабельность, иначе «В путь» не нажимается */
+  pointer-events: auto;
 }
 #ob-start-btn.ob-visible { display: block; }
 @keyframes btn-glow {

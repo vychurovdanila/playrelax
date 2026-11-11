@@ -17,6 +17,10 @@ window.App = {
   // (искры летели ещё до взрыва текста).
   suspended: false,
 
+  // fxActive — рисуем частицы на #fx-canvas. true ставит onboarding.js на
+  // старте сцены, false — через 5 секунд после «В путь», когда искры догорели.
+  fxActive: false,
+
   init: function() {
     this.loop();
   },
@@ -52,25 +56,15 @@ window.App = {
     // Очистка экрана
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Частицы онбординга рисуются на отдельном полноэкранном канвасе
-    // #fx-canvas (z-index выше #onboarding-screen): взрыв текста и взрыв
-    // кнопки видны поверх оверлея. У #fx-canvas width = innerWidth, поэтому
-    // его координаты 1:1 совпадают с client-координатами, в которых
-    // onboarding.js вызывает window.Particles.spawnExplosion.
-    const fxCanvas = document.getElementById('fx-canvas');
-    if (fxCanvas) {
-      // Сброс width/height очищает канвас каждый кадр — «замороженных» искр
-      // после онбординга не остаётся.
-      fxCanvas.width = window.innerWidth;
-      fxCanvas.height = window.innerHeight;
-      const fxCtx = fxCanvas.getContext('2d');
-      fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
-
-      // Обновляем частицы ТОЛЬКО пока идёт онбординг: в игре их обновляют
-      // сами игровые модули (match3.js / tetris.js), иначе был бы двойной
-      // update за кадр — двойная скорость физики и двойная отрисовка.
-      const obScreen = document.getElementById('onboarding-screen');
-      if (obScreen && obScreen.style.display !== 'none' && window.Particles) {
+    // Частицы рисуются на #fx-canvas, пока сцена активна ИЛИ пока искры
+    // «догорают» после «В путь» (App.fxActive ставит onboarding.js).
+    if (window.App.fxActive && window.Particles) {
+      const fxCanvas = document.getElementById('fx-canvas');
+      if (fxCanvas) {
+        fxCanvas.width = window.innerWidth;
+        fxCanvas.height = window.innerHeight;
+        const fxCtx = fxCanvas.getContext('2d');
+        fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
         window.Particles.update(fxCtx);
       }
     }
@@ -110,5 +104,6 @@ window.addEventListener('DOMContentLoaded', () => {
   // Всегда запускаем онбординг для отладки
   // Скрываем основное меню, пока идёт онбординг
   document.getElementById('ui-layer').style.display = 'none';
+
   window.Onboarding.start();
 });
