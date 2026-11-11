@@ -9,6 +9,12 @@
 // Модуль экспортирует глобальный объект `Particles` (скрипт подключается
 // через <script> перед game.js, поэтому никаких import/export нет).
 //
+// Координаты: игры спавнят частицы в координатах игрового поля (#game, 320×640),
+// а рисуются они на полноэкранном #fx-canvas, чей битмап 1:1 равен экрану.
+// Перевод «поле → экран» выполняет setTransform() (вызывается из main.js).
+// Онбординг спавнит частицы уже в экранных координатах — для него
+// трансформация единичная (см. main.js: она сбрасывается на время онбординга).
+//
 // ВАЖНО: присваиваем именно в window.Particles, а НЕ `const Particles = ...`.
 // `const` на верхнем уровне классического скрипта создаёт лишь лексическую
 // привязку в глобальной области, но НЕ свойство window — поэтому проверки
@@ -34,6 +40,33 @@ window.Particles = (function () {
   const DECAY_FAST = Math.max(LIFE_DECAY_MIN, LIFE_DECAY_MAX); // быстрее гаснет
   const DECAY_SLOW = Math.min(LIFE_DECAY_MIN, LIFE_DECAY_MAX); // дольше живёт
 
+  // --- Система координат «игровое поле → экран» ---
+  // Игровые модули (Тетрис, Match-3) спавнят частицы в координатах игрового
+  // поля: у #game битмап 320×640, а на экране он растянут по CSS
+  // (styles.css: height 80dvh + aspect-ratio 1/2). Рисуются же частицы на
+  // полноэкранном #fx-canvas, у которого битмап 1:1 совпадает с экраном,
+  // поэтому координаты надо перевести в экранные прямо при спавне.
+  // Трансформацию задаёт main.js каждый кадр через setTransform().
+  // По умолчанию она тождественная: онбординг спавнит частицы сразу
+  // в экранных координатах (getBoundingClientRect), их пересчитывать нельзя.
+  let scaleX = 1;
+  let scaleY = 1;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  // Задать трансформацию «координаты игрового поля → координаты экрана»:
+  // sx/sy — масштаб #game, ox/oy — его положение на экране.
+  function setTransform(sx, sy, ox, oy) {
+    scaleX = sx;
+    scaleY = sy;
+    offsetX = ox;
+    offsetY = oy;
+  }
+
+  // Перевод координат игрового поля в экранные.
+  function toScreenX(x) { return x * scaleX + offsetX; }
+  function toScreenY(y) { return y * scaleY + offsetY; }
+
   // Массив живых частиц. Переиспользуем объекты через пул, чтобы
   // сборщик мусора не дёргался на каждой частице.
   const particles = [];
@@ -55,8 +88,11 @@ window.Particles = (function () {
     if (particles.length >= MAX_PARTICLES) return;
 
     const p = acquire();
-    p.x = x;
-    p.y = y;
+    // Координаты приходят из игрового поля (Тетрис / шлейф Match-3) —
+    // переводим их в экранные. spawnFromPiece вызывает spawnOne, поэтому
+    // перевод выполняется ровно один раз (двойного масштабирования нет).
+    p.x = toScreenX(x);
+    p.y = toScreenY(y);
     p.vx = (Math.random() - 0.5) * 2 * SPREAD * 1.2; // Разлет в стороны (+20% скорости шлейфа)
     p.vy = (Math.random() - 0.5) * 2 * SPREAD * 1.2 + RISE; // Легкий подъем вверх (+20% скорости)
     p.life = 1.0; // Жизнь от 1 до 0
@@ -83,10 +119,11 @@ window.Particles = (function () {
         if (!matrix[row][col]) continue;
         if (Math.random() > PER_CELL_CHANCE) continue; // Не каждый кадр/клетка
 
-        // Случайная точка внутри клетки (в пикселях экрана).
+        // Случайная точка внутри клетки — в координатах игрового поля.
         const px = (piece.visualCol + col + Math.random()) * grid;
         const py = (piece.visualRow + row + Math.random() - cameraY) * grid;
 
+        // spawnOne сам переводит координаты поля в экранные — ровно один раз.
         spawnOne(px, py, color);
       }
     }
@@ -153,12 +190,16 @@ window.Particles = (function () {
   // Разлетается веером на 360 градусов, скорость и размер — случайные,
   // гаснет быстро (decay 0.012–0.028 ≈ 36–80 кадров), чтобы взрывы не забивали экран.
   function spawnExplosion(x, y, color, count) {
+    // Пересчёт координат игрового поля в экранные (см. setTransform выше).
+    const screenX = toScreenX(x);
+    const screenY = toScreenY(y);
+
     for (let i = 0; i < count; i++) {
       if (particles.length >= MAX_PARTICLES) break;
 
       const p = acquire();
-      p.x = x;
-      p.y = y;
+      p.x = screenX;
+      p.y = screenY;
       // Добавляем случайный разброс, чтобы облако было неидеальным
       const angle = (Math.random() * Math.PI * 2) + (Math.random() - 0.8) * 0.75;
       const speed = 1.8 + Math.random() * 6;
@@ -194,12 +235,16 @@ window.Particles = (function () {
 
   // Взрыв при приземлении (частицы летят вверх и в стороны)
   function spawnImpact(x, y, color, count) {
+    // Пересчёт координат игрового поля в экранные (см. setTransform выше).
+    const screenX = toScreenX(x);
+    const screenY = toScreenY(y);
+
     for (let i = 0; i < count; i++) {
       if (particles.length >= MAX_PARTICLES) break;
 
       const p = acquire();
-      p.x = x;
-      p.y = y;
+      p.x = screenX;
+      p.y = screenY;
       // Угол от 180 до 360 градусов (в Canvas Y идет вниз, значит вверх это минус)
       const angle = Math.PI + Math.random() * Math.PI;
       const speed = 1.6 + Math.random() * 3;
@@ -233,6 +278,7 @@ window.Particles = (function () {
     spawnFromPiece: spawnFromPiece,
     spawnExplosion: spawnExplosion, // Цепная реакция при съедании линий
     spawnImpact: spawnImpact,       // Взрыв частиц при жёстком приземлении фигуры
+    setTransform: setTransform,     // Масштаб и смещение игрового поля (задаёт main.js)
     update: update,
     clear: clear,
     count: count

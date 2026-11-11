@@ -390,10 +390,10 @@ window.Match3Game = {
       }
     }
 
-    // Отрисовка частиц поверх поля
-    if (window.Particles && window.Particles.update) {
-      window.Particles.update(ctx);
-    }
+    // Частицы здесь НЕ обновляются: вся физика и отрисовка единого пула идут
+    // в main.js на полноэкранный #fx-canvas. Иначе был бы второй update за
+    // кадр — двойная физика, частицы «уезжали» влево-вверх. Спавн частиц
+    // (spawnOne / spawnExplosion) остаётся здесь и работает как раньше.
   }
 };
 

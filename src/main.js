@@ -17,10 +17,6 @@ window.App = {
   // (искры летели ещё до взрыва текста).
   suspended: false,
 
-  // fxActive — рисуем частицы на #fx-canvas. true ставит onboarding.js на
-  // старте сцены, false — через 5 секунд после «В путь», когда искры догорели.
-  fxActive: false,
-
   init: function() {
     this.loop();
   },
@@ -56,15 +52,38 @@ window.App = {
     // Очистка экрана
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Частицы рисуются на #fx-canvas, пока сцена активна ИЛИ пока искры
-    // «догорают» после «В путь» (App.fxActive ставит onboarding.js).
-    if (window.App.fxActive && window.Particles) {
+    // ВСЕ частицы (онбординг, шлейф фигуры, взрывы) рисуются только здесь —
+    // на полноэкранном #fx-canvas, всегда. Игровые модули частицы больше не
+    // обновляют: пул в Particles общий, и двойной update за кадр давал двойную
+    // физику (частицы «уезжали» влево-вверх).
+    if (window.Particles) {
       const fxCanvas = document.getElementById('fx-canvas');
       if (fxCanvas) {
         fxCanvas.width = window.innerWidth;
         fxCanvas.height = window.innerHeight;
         const fxCtx = fxCanvas.getContext('2d');
         fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+
+        // Частицы игр спавнятся в координатах игрового поля (#game, 320×640),
+        // а рисуются здесь — на полноэкранном холсте, чей битмап 1:1 равен
+        // экрану. Переводим координаты поля в экранные через масштаб и
+        // положение #game. Во время онбординга (suspended) частицы и так
+        // спавнятся в экранных координатах, поэтому там трансформация
+        // единичная — иначе сцену онбординга сместило бы и сжало.
+        if (window.Particles.setTransform) {
+          if (this.suspended || !this.canvas) {
+            window.Particles.setTransform(1, 1, 0, 0);
+          } else {
+            const rect = this.canvas.getBoundingClientRect();
+            window.Particles.setTransform(
+              rect.width / this.canvas.width,
+              rect.height / this.canvas.height,
+              rect.left,
+              rect.top
+            );
+          }
+        }
+
         window.Particles.update(fxCtx);
       }
     }

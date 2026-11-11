@@ -8,9 +8,6 @@ window.Onboarding = {
     const textContainer = document.getElementById('ob-text-container');
     const startBtn = document.getElementById('ob-start-btn');
 
-    // Разрешаем main.js рисовать частицы сцены на #fx-canvas.
-    if (window.App) window.App.fxActive = true;
-
     window.App.suspended = true; // Останавливаем игру
     if (window.Particles && window.Particles.clear) window.Particles.clear(); // Очищаем старые частицы
 
@@ -109,16 +106,14 @@ window.Onboarding = {
         window.App.suspended = false; // Включаем игру обратно
         window.App.startGame('match3');
 
-        // Даем искрам от кнопки догореть 5 секунд
-        setTimeout(() => {
-          if (window.App) window.App.fxActive = false;
-          // Очищаем холст частиц
-          const fxCanvas = document.getElementById('fx-canvas');
-          if (fxCanvas) {
-            const fxCtx = fxCanvas.getContext('2d');
-            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
-          }
-        }, 5000);
+        // Холст частиц больше не выключается: с этого момента все частицы
+        // (и сцены, и игры) рисует main.js на #fx-canvas. Чистим его один раз,
+        // чтобы в переходном кадре не мелькнуло предыдущее содержимое.
+        const fxCanvas = document.getElementById('fx-canvas');
+        if (fxCanvas) {
+          const fxCtx = fxCanvas.getContext('2d');
+          fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+        }
 
         if (window.audioManager) window.audioManager.startMusic();
       }, 1000);
