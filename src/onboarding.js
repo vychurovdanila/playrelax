@@ -19,10 +19,19 @@ window.Onboarding = {
 
     // 2. Пауза и улет логотипа
     await this.sleep(2000);
+
+    // 1. Скобки смыкаются по горизонтали
     logo.classList.remove('open');
     await this.sleep(800);
+
+    // 2. Смыкаются по вертикали
     logo.classList.remove('split-vertical');
-    logo.classList.add('move-up-left');
+    await this.sleep(800);
+
+    // 3. Улет в правый верхний угол (движение задается классом в CSS)
+    logo.classList.add('move-up-right');
+    // top анимируется 0.8s, затем left — еще 0.8s (с задержкой)
+    await this.sleep(1700);
 
     // 3. Печать текста
     await this.sleep(1600);

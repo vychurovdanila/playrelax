@@ -367,21 +367,24 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
 /* Логотип */
 #ob-logo-container {
   position: absolute; 
-  top: 50%; left: 50%;
+  top: 50%; right: 50%;
   transform: translate(-50%, -50%);
   display: flex; 
   flex-direction: column; 
   align-items: center;
   z-index: 3;
-  transition: top 0.8s ease, left 0.8s ease, transform 0.8s ease;
+  transition: top 0.8s ease, left 0.8s ease, right 0.8s ease, transform 0.8s ease;
 }
 
-#ob-logo-container.move-up-left {
-  top: 30px;
-  left: 30px;
-  /* Сдвигаем так, чтобы в угол прилипал ЛЕВЫЙ ВЕРХНИЙ угол логотипа, а не его центр */
-  transform: translate(50%, 0); 
-  transition: top 0.8s ease, left 0.8s ease 0.8s;
+/* Улет логотипа в правый верхний угол */
+#ob-logo-container.move-up-right {
+  top: 40px;
+  left: auto;      /* Отключаем левое позиционирование */
+  right: 40px;     /* Жестко прижимаем к правому краю на 40px */
+  transform: none; /* Убираем центрирование, чтобы прилипнуть к правому краю */
+  
+  /* Анимируем top и right (с задержкой для right) */
+  transition: top 0.8s ease, right 0.8s ease 0.8s;
 }
 
 /* Скобки и логотип позиционируются НАПРЯМУЮ от #ob-logo-container:
@@ -449,7 +452,7 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
 /* Кнопка */
 #ob-start-btn {
   position: absolute;
-  bottom: 100px; /* Поднимаем на половину высоты (было ниже) */
+  bottom: 25vh;
   left: 50%;
   transform: translateX(-50%);
   width: 130px; /* Уменьшаем в 1.5 раза (было 196, стало 130) */
