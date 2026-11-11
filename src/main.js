@@ -52,14 +52,31 @@ window.App = {
     // Очистка экрана
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Онбординг: игры не обновляются/не рисуются, но частицы — да.
-    // Частицы рисуются здесь, а не своим циклом в onboarding.js, потому что
-    // это единственный владелец requestAnimationFrame и очистки канваса:
-    // второй цикл конфликтовал бы (два clearRect за кадр).
-    if (this.suspended) {
-      if (window.Particles && window.Particles.count()) {
-        window.Particles.update(this.ctx);
+    // Частицы онбординга рисуются на отдельном полноэкранном канвасе
+    // #fx-canvas (z-index выше #onboarding-screen): взрыв текста и взрыв
+    // кнопки видны поверх оверлея. У #fx-canvas width = innerWidth, поэтому
+    // его координаты 1:1 совпадают с client-координатами, в которых
+    // onboarding.js вызывает window.Particles.spawnExplosion.
+    const fxCanvas = document.getElementById('fx-canvas');
+    if (fxCanvas) {
+      // Сброс width/height очищает канвас каждый кадр — «замороженных» искр
+      // после онбординга не остаётся.
+      fxCanvas.width = window.innerWidth;
+      fxCanvas.height = window.innerHeight;
+      const fxCtx = fxCanvas.getContext('2d');
+      fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+
+      // Обновляем частицы ТОЛЬКО пока идёт онбординг: в игре их обновляют
+      // сами игровые модули (match3.js / tetris.js), иначе был бы двойной
+      // update за кадр — двойная скорость физики и двойная отрисовка.
+      const obScreen = document.getElementById('onboarding-screen');
+      if (obScreen && obScreen.style.display !== 'none' && window.Particles) {
+        window.Particles.update(fxCtx);
       }
+    }
+
+    // Онбординг: игры не обновляются и не рисуются.
+    if (this.suspended) {
       return;
     }
 
@@ -90,15 +107,8 @@ window.addEventListener('DOMContentLoaded', () => {
     window.App.startGame('match3');
   });
 
-  // Проверяем, проходил ли пользователь онбординг.
-  // Флаг ставит src/onboarding.js по кнопке [ В ПУТЬ ].
-  if (!localStorage.getItem('playrelax_onboarded')) {
-    // Скрываем основное меню, пока идёт онбординг
-    document.getElementById('ui-layer').style.display = 'none';
-    // Запускаем онбординг
-    if (window.Onboarding) window.Onboarding.start();
-  } else {
-    // Если уже проходил, показываем меню
-    document.getElementById('ui-layer').style.display = 'flex';
-  }
+  // Всегда запускаем онбординг для отладки
+  // Скрываем основное меню, пока идёт онбординг
+  document.getElementById('ui-layer').style.display = 'none';
+  window.Onboarding.start();
 });

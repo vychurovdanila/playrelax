@@ -353,92 +353,61 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   transform: scale(1.05);
 }
 
-/* ================= ОНБОРДИНГ (15-шаговый сценарий) =================
-   Геометрия подогнана по прототипам prototype/1.jpg … 15.jpg.
-   Слой сцены — position: fixed с z-index: 2000 (выше меню 1000).
-   ВАЖНО: у контейнера НЕТ flex-центрирования — все элементы позиционируются
-   абсолютно от центра/краёв, иначе фразы «плывут» относительно прототипа. */
-
 #onboarding-screen {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
   z-index: 2000; overflow: hidden;
   font-family: 'Tiny5', monospace; color: #fff;
 }
 
-/* Чёрная подложка. Прозрачность меняется по шагам:
-   1 → непрозрачный чёрный (экраны 1-3)
-   → 0.6 / 40% прозрачности на время текста (экраны 4-9)
-   → 0.8 (экраны 10-15)
-   → 0 при переходе в игру. */
 .ob-vignette {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   background: #000; transition: background 1s ease; z-index: 0;
 }
 
-/* ---------- Логотип со скобками ----------
-   Общий блок — 305×58 (см. .ob-brackets). Скобки 32×32 двигаются ТОЛЬКО
-   математикой translate относительно центра: сначала разъезжаются по
-   вертикали (вложенные → 32×58), затем по горизонтали (32×58 → 305×58),
-   открывая надпись PLAYRELAX. Размеры логотипа (.ob-logo-img) не меняются —
-   у него свои внутренние отступы.
-   Блок центрируется по центру экрана (top: 50% / left: 50%) и на шаге
-   подъёма переезжает вверх (top: 50px). */
+/* Логотип */
 #ob-logo-container {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center;
   z-index: 3;
-  transition: top 1s ease, transform 1s ease, filter 1s ease;
-}
-/* Экран 4+: скобки смыкаются и узел уезжает наверх. */
-#ob-logo-container.move-top { top: 50px; transform: translate(-50%, 0); }
-/* Экран 10: логотип уезжает ВЛЕВО за 0.5 с и обесцвечивается —
-   на prototype/10.jpg узел стоит в левом верхнем углу. */
-#ob-logo-container.fade-left {
-  top: 75px;
-  transform: translate(calc(-50vw + 92px), 0);
-  filter: grayscale(1) opacity(0.55);
+  transition: top 0.8s ease, left 0.8s ease, transform 0.8s ease;
 }
 
-/* Контейнер узла. Общий блок 305×58: скобки 32×32 позиционируются
-   АБСОЛЮТНО относительно него и двигаются ТОЛЬКО математикой translate —
-   поэтому размеры логотипа (.ob-logo-img) мы не трогаем: у него свои
-   внутренние отступы, а скобки смещаются относительно центра. */
+#ob-logo-container.move-up-left {
+  top: 30px;
+  left: 30px;
+  transform: none;
+  transition: top 0.8s ease, left 0.8s ease 0.8s;
+}
+
 .ob-brackets {
   position: relative;
   width: 305px; height: 58px;
   display: flex; align-items: center; justify-content: center;
 }
 
-/* Скобки 32×32, изначально по центру контейнера. */
 .ob-bracket {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  left: 50%;
-  top: 50%;
+  position: absolute; width: 32px; height: 32px;
+  left: 50%; top: 50%;
   transition: transform 0.8s ease-in-out;
   z-index: 10;
 }
 
-/* Логотип: оставляем естественный размер, просто скрываем. */
+/* Шторки лого */
 .ob-logo-img {
-  position: absolute;
-  left: 50%;
-  top: 50%;
+  position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);
-  width: 181px;
+  width: 305px; height: 58px;
   display: block;
-  opacity: 0;
-  transition: opacity 0.8s ease-in-out;
+  clip-path: inset(0 100% 0 0);
+  -webkit-clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.8s ease-in-out;
   z-index: 5;
 }
 
-/* 1. Вложены (по центру). */
 #ob-left  { transform: translate(-50%, -50%); }
 #ob-right { transform: translate(-50%, -50%); }
 
-/* 2. Вертикальный сплит: левая вниз на 13px, правая вверх на 13px. */
 #ob-logo-container.split-vertical #ob-left {
   transform: translate(-50%, calc(-50% + 13px));
 }
@@ -446,8 +415,6 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   transform: translate(-50%, calc(-50% - 13px));
 }
 
-/* 3. Горизонтальный сплит: разъезжаются на 136.5px в стороны, сохраняя
-   вертикальный сдвиг. */
 #ob-logo-container.open #ob-left {
   transform: translate(calc(-50% - 136.5px), calc(-50% + 13px));
 }
@@ -455,224 +422,55 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   transform: translate(calc(-50% + 136.5px), calc(-50% - 13px));
 }
 #ob-logo-container.open .ob-logo-img {
-  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  -webkit-clip-path: inset(0 0 0 0);
 }
 
-/* Подпись под логотипом (экраны 11-12): «- вызов меню».
-   min-height фиксирует высоту — иначе логотип «прыгает» при печати и
-   стирании текста (пустой блок без текста схлопывается в 0). */
-#ob-typing-subtext {
-  font-size: 22px; line-height: 1.2;
-  margin-top: 6px;
-  color: #fff;
-  min-height: 1.2em;
-  text-align: left;
-  white-space: nowrap;
-}
-
-/* ---------- Фразы (экраны 4-9) ----------
-   Блок прижат к низу «окна» текста: новые строки добавляются в конец, а
-   весь блок сдвигается вверх — так же, как «уезжает» текст в прототипах,
-   где каждая свежая фраза печатается внизу и поднимается по мере появления
-   следующих. Четыре состояния непрозрачности:
-     .op-100 (100%) — только что напечатанная строка,
-     .op-50  (50%)  — предыдущая,
-     .op-25  (25%)  — предпредыдущая,
-     .op-0   (0%)   — исчезла.
-   Верхний отступ 150px — ниже поднятого логотипа (prototype/4.jpg), слева
-   отступ 32px (на prototype/4.jpg текст начинается примерно с 1/8 ширины). */
+/* Текст */
 #ob-text-container {
-  position: absolute;
-  top: 150px; left: 32px; right: 32px;
-  display: flex; flex-direction: column;
-  align-items: flex-start;
-  z-index: 2;
+  position: absolute; top: 150px; left: 32px; right: 32px;
+  display: flex; flex-direction: column; align-items: flex-start; z-index: 2;
 }
+
 .ob-line {
-  font-size: 22px; line-height: 1.35;
-  letter-spacing: 1px;
-  margin-bottom: 12px;
-  transition: opacity 0.5s ease, color 0.5s ease, transform 0.4s ease;
-  transform: translateY(0);
+  font-size: 22px; line-height: 1.35; letter-spacing: 1px; margin-bottom: 12px;
+  transition: opacity 0.5s ease, color 0.5s ease;
 }
 .ob-line.op-100 { opacity: 1; color: #fff; }
 .ob-line.op-50  { opacity: 0.5; color: #fff; }
 .ob-line.op-25  { opacity: 0.25; color: #fff; }
 .ob-line.op-0   { opacity: 0; color: #fff; }
 
-/* Акцентная подсветка строки, которую печатают сейчас (зелёная, как в
-   prototype/5.jpg — «НЕВОЗМОЖНО» и prototype/12.jpg — «ЗАНЯТИЕ»). */
-.ob-line.accent { color: #2bee05; }
-
-/* ---------- Интерактив (экраны 13-15) ----------
-   Полоса «свайп двумя пальцами» стоит вверху экрана и зажата между двумя
-   скобками — как на prototype/13.jpg: [ свайп двумя пальцами ].
-   Скобки лежат вплотную к тексту (это открытое состояние узла лого). */
-#ob-interaction-area {
-  position: absolute; top: 0; left: 0;
-  width: 100%; height: 100%;
-  display: flex; flex-direction: column; align-items: center;
-  z-index: 4;
-}
-
-/* Верхняя полоса-подсказка с открытыми скобками. */
-.ob-swipe-bar {
-  position: absolute; top: 26px; left: 0; right: 0;
-  display: flex; align-items: center; justify-content: center;
-  gap: 8px;
-}
-.ob-swipe-bracket { width: 26px; height: 26px; position: static; margin: 0; }
-.ob-swipe-text {
-  font-size: 22px; line-height: 1; letter-spacing: 1px;
-  color: #fff; white-space: nowrap;
-}
-
-/* Подсказка-анимация двух пальцев (2fingers.svg — 83×138 с двумя кругами).
-   На prototype/13.jpg кружки стоят СПРАВА от заголовка, чуть выше центра,
-   поэтому смещаем их в правую половину экрана.
-   Кружки «пульсируют»: так читается движение двумя пальцами по горизонтали. */
-#ob-hint {
-  position: absolute;
-  top: 40%; left: 70%;
-  width: 110px; height: 183px;
-  transform: translate(-50%, -50%);
-  z-index: 5;
-}
-#ob-hint.animate { animation: hint-pulse 1.6s ease-in-out infinite; }
-@keyframes hint-pulse {
-  0%   { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
-  50%  { transform: translate(-50%, -50%) scale(1.14); opacity: 0.55; }
-  100% { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
-}
-
-/* Карусель занятий (экраны 14-15). На prototype/14.jpg … 15.jpg элемент
-   со стрелками стоит НИЖЕ заголовка, в нижней трети экрана, и не задевает
-   текст. Заголовок сверху — в #ob-typing-subtext.
-   Скрыта до жеста: показывается классом .ob-visible (ставит onboarding.js).
-   Инлайн display:none в разметке НЕ используется — иначе он перебивает
-   класс и карусель не появляется. */
-#ob-carousel {
-  position: absolute; top: 62%; left: 0; right: 0;
-  transform: translateY(-50%);
-  display: none; align-items: center; justify-content: center;
-  gap: 20px;
-}
-.ob-arrow {
-  font-size: 34px; line-height: 1;
-  color: #2bee05; cursor: pointer;
-  padding: 4px 8px;
-  transition: transform 0.15s ease, text-shadow 0.15s ease;
-}
-.ob-arrow:hover { transform: scale(1.15); text-shadow: 0 0 10px #2bee05; }
-.ob-carousel-item { display: flex; align-items: center; justify-content: center; }
-#ob-item-img {
-  width: 137px; height: auto;
-  display: block;
-  transition: opacity 0.35s ease;
-}
-/* Смена элемента карусели — короткое затухание (см. shiftItem в JS). */
-#ob-item-img.switching { opacity: 0; }
-
-/* Кнопка [ В ПУТЬ ] (startbutton.svg — 161×58).
-   По прототипу кнопка СВЕТИТСЯ и по её периметру вылетают такие же искры,
-   как у фигур тетриса в свободном полёте (это делает src/onboarding.js через
-   window.Particles.spawnExplosion — он вызывается по периметру рамки).
-   Скрыта до жеста (появляется вместе с каруселью, класс .ob-visible). */
+/* Кнопка */
 #ob-start-btn {
-  position: absolute; bottom: 64px; left: 50%;
+  position: absolute; bottom: 100px; left: 50%;
   transform: translateX(-50%);
-  width: 196px; height: auto;
-  display: none; cursor: pointer;
+  width: 196px; display: none; cursor: pointer;
   filter: drop-shadow(0 0 10px rgba(255,255,255,0.85));
-  animation: btn-glow 1.6s ease-in-out infinite;
+  animation: btn-glow 1.6s infinite;
   z-index: 6;
 }
 #ob-start-btn.ob-visible { display: block; }
-#ob-start-btn:hover { transform: translateX(-50%) scale(1.05); }
 @keyframes btn-glow {
   0%   { filter: drop-shadow(0 0 6px  rgba(255,255,255,0.55)); }
   50%  { filter: drop-shadow(0 0 18px rgba(255,255,255,1)); }
   100% { filter: drop-shadow(0 0 6px  rgba(255,255,255,0.55)); }
 }
 
-.bg-blur { filter: blur(10px) brightness(0.5); }
-
-/* ---------- Интеграция сцены с игровым слоем ----------
-   Канвас частиц обязан быть ВИДЕН во время онбординга: взрыв текста, искры
-   по периметру кнопки и финальный переход рисуются на #game, а экран
-   онбординга идёт выше (z-index: 2000). Без этого правила искры уходят в
-   скрытый канвас. Атрибут body[data-onboarding] ставит src/onboarding.js
-   на время сцены и снимает при переходе в игру (в игре канвасу нужен его
-   обычный opacity). */
-body[data-onboarding] canvas {
+#fx-canvas {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+  z-index: 9999; pointer-events: none;
+  /* Общее правило `canvas` (см. выше) рассчитано на игровое поле 320×640:
+     opacity: 0, рамка 1px, скругление 10px и ограничения max-width: 95vw /
+     max-height: 80dvh. Для полноэкранного канваса частиц это неверно — он
+     обязан быть видимым, без рамки и ровно во весь экран, иначе частицы
+     обрезаются, а bitmap (width = innerWidth) масштабируется и client-
+     координаты не совпадают с координатами частиц. */
   opacity: 1;
-  pointer-events: none;
-  z-index: 2001; /* выше #onboarding-screen (2000), чтобы искры были поверх */
+  border: 0;
+  border-radius: 0;
+  max-width: none;
+  max-height: none;
   filter: none;
-  border-color: transparent;
 }
-
-/* Финальный переход (2 с): канвас «проявляется» из блюра и прозрачности —
-   класс .ob-intro-add вешает src/onboarding.js на время перехода. */
-body[data-onboarding] canvas.ob-intro-add {
-  filter: blur(8px);
-  opacity: 0;
-  transition: filter 2s ease, opacity 2s ease;
-}
-
-/* ---------- Состояние экрана 13+ (после снятия блюра) ----------
-   Узел лого сжимается в маленькую иконку и уходит в левый верхний угол,
-   а подпись становится крупным центрированным заголовком — так на
-   prototype/12.jpg … 15.jpg: [скобки] в углу, заголовок по центру. */
-#ob-logo-container.ob-logo-mini {
-  top: 28px;
-  transform: translate(calc(-50vw + 52px), 0);
-  filter: none;
-  transition: top 0.5s ease, transform 0.5s ease;
-}
-#ob-logo-container.ob-logo-mini .ob-logo-img { display: none; }
-#ob-logo-container.ob-logo-mini .ob-brackets {
-  width: 26px; height: 26px;
-}
-#ob-logo-container.ob-logo-mini .ob-bracket {
-  width: 26px; height: 26px;
-}
-#ob-logo-container.ob-logo-mini #ob-left  { transform: translate(-50%, -50%); }
-#ob-logo-container.ob-logo-mini #ob-right { transform: translate(-50%, -50%); }
-
-/* Заголовок на экранах 12-15. На prototype/12.jpg … 15.jpg он стоит в
-   ЛЕВОЙ половине экрана и состоит из трёх строк «ВЫБЕРИ / ЗАНЯТИЕ /
-   И В ПУТЬ» (переносы задаёт JS, поэтому white-space: pre-line).
-   max-width подобран так, чтобы при 30px Tiny5 «И В ПУТЬ» влезало в строку
-   (иначе браузер дробит заголовок по одному слову). */
-#ob-typing-subtext.ob-heading {
-  position: fixed;
-  top: 150px; left: 32px;
-  width: auto;
-  max-width: 62vw;
-  font-size: 27px;
-  line-height: 1.35;
-  text-align: left;
-  white-space: pre-line;
-  margin: 0;
-  z-index: 4;
-  /* Подпись печатается посимвольно — резервируем высоту под 3 строки,
-     чтобы карусель и подсказка не «прыгали». */
-  min-height: 4.05em;
-}
-
-/* Карусель появляется только после жеста (экраны 14-15). Раньше в разметке
-   у неё стоял инлайн display:none — здесь возвращаем управляемое состояние. */
-#ob-carousel.ob-visible { display: flex; }
-
-/* Финальный переход: канвас проявляется из блюра и прозрачности за 2 с. */
-#game.ob-intro-add {
-  filter: blur(8px) !important;
-  opacity: 0 !important;
-  transition: filter 2s ease, opacity 2s ease !important;
-}
-
-/* Мягкое затухание экрана при уходе в игру: transition задаётся из JS
-   (screen.style.transition), здесь только страховка от мерцания. */
-#onboarding-screen { will-change: opacity; }
 
