@@ -379,8 +379,8 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
 #ob-logo-container.move-up-left {
   top: 30px;
   left: 30px;
-  transform: none; /* Убираем центрирование */
-  /* Сначала едем вверх (0.8с), потом влево (0.8с) */
+  /* Сдвигаем так, чтобы в угол прилипал ЛЕВЫЙ ВЕРХНИЙ угол логотипа, а не его центр */
+  transform: translate(50%, 0); 
   transition: top 0.8s ease, left 0.8s ease 0.8s;
 }
 
