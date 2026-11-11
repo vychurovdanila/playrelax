@@ -3,6 +3,15 @@
    что и Тетрис: update() — логика, draw(ctx) — отрисовка.
    Кадром управляет main.js (window.App.loop).
    ============================================================ */
+// Жёсткий счётчик касаний: на каждом touchstart берём фактическое число пальцев
+// (e.touches.length — защищает от потери событий), на touchend/touchcancel
+// уменьшаем. Не даёт фигурке «зависнуть в руке», если мультитач-жест
+// закончился не по сценарию или часть событий потерялась.
+let touchCount = 0;
+document.addEventListener('touchstart', (e) => { touchCount = e.touches.length; }, { passive: true });
+document.addEventListener('touchend', () => { touchCount = Math.max(0, touchCount - 1); }, { passive: true });
+document.addEventListener('touchcancel', () => { touchCount = Math.max(0, touchCount - 1); }, { passive: true });
+
 window.Match3Game = {
   cols: 5,
   rows: 10,
@@ -84,6 +93,11 @@ window.Match3Game = {
   },
 
   update: function() {
+    // ЖЕСТКИЙ СБРОС: если на экране нет пальцев, фигурка не может быть в руке
+    if (this.draggedTile && touchCount === 0) {
+      this.draggedTile = null;
+    }
+
     // Защита: если поле еще не создано, выходим
     if (!this.board || this.board.length === 0) return;
 
@@ -319,6 +333,13 @@ window.Match3Game = {
   },
 
   draw: function(ctx) {
+    // Если на экране нет пальцев, но фигурка взята — принудительно отпускаем.
+    // Проверка именно здесь, в отрисовке: она выполняется каждый кадр и не
+    // зависит от кэша логики/таймингов update().
+    if (this.draggedTile && (typeof touchCount !== 'undefined' && touchCount === 0)) {
+      this.draggedTile = null;
+    }
+
     // Защита: доска создается при первом кадре, если init() еще не вызывался
     if (!this.board || this.board.length === 0) this.init();
 
@@ -399,33 +420,53 @@ window.Match3Game = {
 
 document.addEventListener('touchstart', function(e) {
   if (window.App && window.App.currentGame !== 'match3') return;
-  if (e.touches.length > 1) return;
 
-  // Проверяем, есть ли падающие кубики
-  let isFalling = Match3Game.visualY.some(row => row.some(v => v < 0));
-  if (isFalling) return; // Если падают — игнорируем свайп
-
-  Match3Game.touchStartX = e.touches[0].clientX;
-  Match3Game.touchStartY = e.touches[0].clientY;
-
-  // Вычисляем клетку под пальцем и берем фигурку в руку (для drag-and-drop)
-  const rect = window.App.canvas.getBoundingClientRect();
-  const scale = rect.width / 320;
-  const localX = (e.touches[0].clientX - rect.left) / scale;
-  const localY = (e.touches[0].clientY - rect.top) / scale;
-  const col = Math.floor(localX / Match3Game.cellSize);
-  const row = Math.floor(localY / Match3Game.cellSize);
-
-  // Если палец попал в сетку — берем фигурку
-  if (row >= 0 && row < Match3Game.rows && col >= 0 && col < Match3Game.cols) {
-    Match3Game.draggedTile = { row: row, col: col };
-    Match3Game.dragX = e.touches[0].clientX;
-    Match3Game.dragY = e.touches[0].clientY;
+  // Если на экране больше одного пальца — это мультитач-жест.
+  // Принудительно отпускаем фигурку и НЕ берем новую.
+  if (e.touches.length > 1) {
+    Match3Game.draggedTile = null;
+    Match3Game.touchStartX = null;
+    Match3Game.touchStartY = null;
+    return;
   }
-});
+
+  // Обычное касание одним пальцем
+  if (e.touches.length === 1) {
+    // Пока кубики падают — свайп и взятие фигурки игнорируем
+    const isFalling = Match3Game.visualY.some(row => row.some(v => v < 0));
+    if (isFalling) return;
+
+    Match3Game.touchStartX = e.touches[0].clientX;
+    Match3Game.touchStartY = e.touches[0].clientY;
+
+    // Вычисляем клетку под пальцем и берем фигурку в руку (для drag-and-drop)
+    const rect = window.App.canvas.getBoundingClientRect();
+    const scale = rect.width / 320;
+    const localX = (e.touches[0].clientX - rect.left) / scale;
+    const localY = (e.touches[0].clientY - rect.top) / scale;
+    const col = Math.floor(localX / Match3Game.cellSize);
+    const row = Math.floor(localY / Match3Game.cellSize);
+
+    // Если палец попал в сетку — берем фигурку
+    if (row >= 0 && row < Match3Game.rows && col >= 0 && col < Match3Game.cols) {
+      Match3Game.draggedTile = { row: row, col: col };
+      Match3Game.dragX = e.touches[0].clientX;
+      Match3Game.dragY = e.touches[0].clientY;
+    }
+  }
+}, { passive: true });
 
 document.addEventListener('touchmove', function(e) {
   if (window.App && window.App.currentGame !== 'match3') return;
+
+  // Если пальцев больше одного — это не таскание фигурки, а жест.
+  // Сбрасываем фигурку и игнорируем движение.
+  if (e.touches.length > 1) {
+    Match3Game.draggedTile = null;
+    return;
+  }
+
+  // Обычное таскание одним пальцем
   if (Match3Game.draggedTile && e.touches.length === 1) {
     Match3Game.dragX = e.touches[0].clientX;
     Match3Game.dragY = e.touches[0].clientY;
@@ -434,6 +475,12 @@ document.addEventListener('touchmove', function(e) {
 
 document.addEventListener('touchend', function(e) {
   if (window.App && window.App.currentGame !== 'match3') return;
+
+  // Если пальцев на экране не осталось — принудительно убираем фигурку из руки.
+  // Флаг ставим здесь, в начале обработчика, а сам сброс делаем в конце (см.
+  // ниже): обнули мы draggedTile прямо сейчас, и не сработал бы ни обмен
+  // фигурками, ни возврат её на место — эта логика идёт следом.
+  const noFingersLeft = e.touches.length === 0;
 
   // Если мы тащили фигурку, проверяем, куда ее бросили
   if (Match3Game.draggedTile) {
@@ -490,6 +537,23 @@ document.addEventListener('touchend', function(e) {
   if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
     Match3Game.handleSwipe(Match3Game.touchStartX, Match3Game.touchStartY, dx, dy);
   }
+  Match3Game.touchStartX = null;
+  Match3Game.touchStartY = null;
+
+  // Последний палец ушёл — фигурка ни при каком раскладе не остаётся в руке.
+  if (noFingersLeft) {
+    Match3Game.draggedTile = null;
+  }
+});
+
+// Браузер может сам прервать касание (мультитач-жест, системный скролл или
+// свайп) — тогда touchend не приходит вовсе, и фигурка «залипает» в руке:
+// продолжает висеть по последней координате, ехать за следующим пальцем и
+// сыпать искры. Поэтому отпускаем её и по touchcancel.
+document.addEventListener('touchcancel', function() {
+  if (window.App && window.App.currentGame !== 'match3') return;
+
+  Match3Game.draggedTile = null;
   Match3Game.touchStartX = null;
   Match3Game.touchStartY = null;
 });
