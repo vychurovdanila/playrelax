@@ -78,11 +78,15 @@ window.Onboarding = {
       });
     }
 
+    // Делаем фон еще прозрачнее (25% opacity)
+    if (vignette) vignette.style.background = 'rgba(0, 0, 0, 0.25)';
+
     // 5. Скрываем текст и показываем кнопку
     await this.sleep(100);
     textContainer.style.display = 'none';
-    vignette.style.background = 'rgba(0,0,0,0.6)';
     startBtn.classList.add('ob-visible');
+    // Фон держим максимально прозрачным после взрыва текста
+    if (vignette) vignette.style.background = 'rgba(0, 0, 0, 0.25)';
 
     // 6. Кнопка «В путь»
     startBtn.addEventListener('click', () => {
@@ -104,7 +108,7 @@ window.Onboarding = {
         screen.style.pointerEvents = 'none';
 
         window.App.suspended = false; // Включаем игру обратно
-        window.App.startGame('match3');
+        window.App.startGame('tetris');
 
         // Холст частиц больше не выключается: с этого момента все частицы
         // (и сцены, и игры) рисует main.js на #fx-canvas. Чистим его один раз,
