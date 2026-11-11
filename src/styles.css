@@ -137,12 +137,13 @@ canvas {
 /* ---------- Пауза: кинематографичный эффект смены фокуса ----------
    Класс вешает/снимает обработчик жестов в src/game.js.
    Канвас уходит на второй план (размыт + прозрачнее), видео — в фокус. */
-body.is-paused canvas {
-  opacity: 0; /* Прозрачность 100% (полностью невидим) */
-  filter: blur(20px); /* Размытие 20px */
+body.is-paused #game {
+  opacity: 0 !important; 
+  filter: blur(20px) !important; 
   border-color: transparent;
-  /* Увеличиваем время перехода до 1 секунды */
-  transition: opacity 1s ease, filter 1s ease;
+  visibility: hidden !important; 
+  transition: opacity 1s ease, filter 1s ease, visibility 1s;
+  pointer-events: none;
 }
 
 body.is-paused .bg-iframe {
@@ -499,5 +500,12 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   max-width: none;
   max-height: none;
   filter: none;
+}
+
+
+/* Принудительная прозрачность фигур на паузе */
+body.is-paused #game {
+  opacity: 0;
+  pointer-events: none;
 }
 

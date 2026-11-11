@@ -1180,6 +1180,12 @@ function moveDown() {
 // --- Клавиатура (современный API: e.key) ---
 document.addEventListener('keydown', function(e) {
 
+  // На паузе игра не должна реагировать на клавиши
+  if (isPaused) {
+    // Исключение: пробел (снятие паузы) обрабатывается ниже
+    if (e.code !== 'Space' && e.key !== ' ') return;
+  }
+
   // пробел (десктоп): пауза/продолжить игру.
   // e.code проверяем вместе с e.key — так пробел ловится одинаково на любой
   // раскладке. preventDefault — чтобы страница не скроллилась пробелом.
@@ -1269,6 +1275,7 @@ function stopSingleSwipe() {
 }
 
 canvas.addEventListener('touchstart', function(e) {
+  if (isPaused) return;
   if (window.App && window.App.currentGame !== 'tetris') return;
   e.preventDefault();
   const touch = e.changedTouches[0];
@@ -1291,6 +1298,7 @@ canvas.addEventListener('touchstart', function(e) {
 }, { passive: false });
 
 canvas.addEventListener('touchmove', function(e) {
+  if (isPaused) return;
   if (window.App && window.App.currentGame !== 'tetris') return;
   // preventDefault — чтобы страница не скроллилась при свайпах
   e.preventDefault();
@@ -1398,6 +1406,7 @@ canvas.addEventListener('touchmove', function(e) {
 }, { passive: false });
 
 canvas.addEventListener('touchend', function(e) {
+  if (isPaused) return;
   if (window.App && window.App.currentGame !== 'tetris') return;
   e.preventDefault();
 
