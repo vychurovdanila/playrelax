@@ -44,6 +44,11 @@ document.addEventListener('touchstart', (e) => {
     return;
   }
   if (e.touches.length === 2) {
+    // Принудительно отпускаем фигурку в Match-3
+    if (window.Match3Game) {
+      window.Match3Game.draggedTile = null;
+      window.Match3Game.returningTile = null;
+    }
     twoFingerStartX = e.touches[0].clientX;
     twoFingerStartY = e.touches[0].clientY;
     twoFingerMoved = false;
@@ -87,6 +92,11 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: true, capture: true });
 
 document.addEventListener('touchend', (e) => {
+  // Если все пальцы убраны — принудительно отпускаем фигурку
+  if (e.touches.length === 0 && window.Match3Game) {
+    window.Match3Game.draggedTile = null;
+    window.Match3Game.returningTile = null;
+  }
   // Три пальца: тап = вкл/выкл звук, свайп = следующий трек.
   if (threeFingerStartX !== null && e.changedTouches.length > 0) {
     if (e.touches.length === 0) { // Все пальцы оторваны

@@ -46,6 +46,29 @@ window.App = {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   },
 
+  // Мост для gestures.js (мультитач).
+  // Двухпальцевый тап переключает паузу. Сначала пробуем метод игры
+  // (window.TetrisGame), затем рабочий фасад тетриса (window.GameAPI,
+  // см. src/tetris.js) и только в крайнем случае — локальный флаг suspended.
+  togglePause: function() {
+    if (window.TetrisGame && window.TetrisGame.togglePause) {
+      window.TetrisGame.togglePause();
+    } else if (window.GameAPI && window.GameAPI.togglePause) {
+      window.GameAPI.togglePause();
+    } else {
+      this.suspended = !this.suspended;
+    }
+  },
+
+  // Жест увёл палец с игры: снимаем удержание «вниз», иначе фигура залипнет.
+  releaseDownHold: function() {
+    if (window.TetrisGame && window.TetrisGame.releaseDownHold) {
+      window.TetrisGame.releaseDownHold();
+    } else if (window.GameAPI && window.GameAPI.releaseDownHold) {
+      window.GameAPI.releaseDownHold();
+    }
+  },
+
   loop: function() {
     requestAnimationFrame(() => this.loop());
 
