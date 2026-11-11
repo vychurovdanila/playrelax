@@ -376,7 +376,8 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
 #ob-logo-container.move-up-left {
   top: 30px;
   left: 30px;
-  transform: none;
+  transform: none; /* Убираем центрирование */
+  /* Сначала едем вверх (0.8с), потом влево (0.8с) */
   transition: top 0.8s ease, left 0.8s ease 0.8s;
 }
 
@@ -399,8 +400,9 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   transform: translate(-50%, -50%);
   width: 305px; height: 58px;
   display: block;
-  clip-path: inset(0 100% 0 0);
-  -webkit-clip-path: inset(0 100% 0 0);
+  /* Скрыто в центре (шторки закрыты) */
+  clip-path: inset(0 50% 0 50%);
+  -webkit-clip-path: inset(0 50% 0 50%);
   transition: clip-path 0.8s ease-in-out;
   z-index: 5;
 }
@@ -422,6 +424,7 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   transform: translate(calc(-50% + 136.5px), calc(-50% - 13px));
 }
 #ob-logo-container.open .ob-logo-img {
+  /* Открыто полностью (шторки разъехались) */
   clip-path: inset(0 0 0 0);
   -webkit-clip-path: inset(0 0 0 0);
 }
@@ -443,9 +446,13 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
 
 /* Кнопка */
 #ob-start-btn {
-  position: absolute; bottom: 100px; left: 50%;
+  position: absolute;
+  bottom: 100px; /* Поднимаем на половину высоты (было ниже) */
+  left: 50%;
   transform: translateX(-50%);
-  width: 196px; display: none; cursor: pointer;
+  width: 130px; /* Уменьшаем в 1.5 раза (было 196, стало 130) */
+  display: none;
+  cursor: pointer;
   filter: drop-shadow(0 0 10px rgba(255,255,255,0.85));
   animation: btn-glow 1.6s infinite;
   z-index: 6;

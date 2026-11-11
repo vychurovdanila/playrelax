@@ -8,6 +8,9 @@ window.Onboarding = {
     const textContainer = document.getElementById('ob-text-container');
     const startBtn = document.getElementById('ob-start-btn');
 
+    window.App.suspended = true; // Останавливаем игру
+    if (window.Particles && window.Particles.clear) window.Particles.clear(); // Очищаем старые частицы
+
     // 1. Логотип: открытие
     await this.sleep(1000);
     logo.classList.add('split-vertical');
@@ -23,7 +26,13 @@ window.Onboarding = {
 
     // 3. Печать текста
     await this.sleep(1600);
-    const phrases = ["ЭТО НЕ ИГРА", "ВЫИГРАТЬ ИЛИ ПРОИГРАТЬ НЕВОЗМОЖНО", "ЭТО ПУТЕШЕСТВИЕ К САМОМУ СЕБЕ"];
+    const phrases = [
+      "ЭТО НЕ ИГРА",
+      "ВЫИГРАТЬ ИЛИ ПРОИГРАТЬ НЕВОЗМОЖНО",
+      "ЭТО ПУТЕШЕСТВИЕ К САМОМУ СЕБЕ",
+      "ОТКРЫВАЙ НОВЫЕ ПРОСТРАНСТВА",
+      "СОБИРАЯ ЧАСТИЦЫ СВЕТА"
+    ];
 
     for (let i = 0; i < phrases.length; i++) {
       const line = document.createElement('div');
@@ -73,6 +82,7 @@ window.Onboarding = {
 
       setTimeout(() => {
         screen.style.display = 'none';
+        window.App.suspended = false; // Включаем игру обратно
         window.App.startGame('match3');
         if (window.audioManager) window.audioManager.startMusic();
       }, 1000);
