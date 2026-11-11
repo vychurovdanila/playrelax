@@ -72,6 +72,15 @@ window.App = {
   loop: function() {
     requestAnimationFrame(() => this.loop());
 
+    // Генерация медленных частиц на паузе
+    if (document.body.classList.contains('is-paused') && window.Particles) {
+      if (Math.random() < 0.1) { // ~6 частиц в секунду
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        window.Particles.spawnAmbient(x, y);
+      }
+    }
+
     // Очистка экрана
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 

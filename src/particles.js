@@ -262,6 +262,37 @@ window.Particles = (function () {
     }
   }
 
+  // Медленная «фоновая» частица для паузы: спавнится в ЭКРАННЫХ координатах
+  // (x, y — пиксели экрана, трансформация поля здесь НЕ применяется, т.к.
+  // main.js сбрасывает её в единичную, пока игра на паузе).
+  // Живёт долго (3–20 с) и еле дрейфует — создаёт спокойный «звёздный» фон.
+  function spawnAmbient(x, y) {
+    // Ограничение: не больше 50 частиц одновременно
+    if (particles.length >= 50) return;
+
+    const p = acquire();
+    p.x = x;
+    p.y = y;
+    // Медленные случайные траектории
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.1 + Math.random() * 0.3;
+    p.vx = Math.cos(angle) * speed;
+    p.vy = Math.sin(angle) * speed;
+    p.swirl = (Math.random() - 0.5) * 0.1; // Легкое завихрение
+
+    p.life = 1.0;
+    // Время жизни от 3 до 20 секунд (при 60fps: от 180 до 1200 кадров)
+    // decay = 1 / (жизнь в кадрах)
+    const framesLife = (3 + Math.random() * 17) * 60;
+    p.decay = 1 / framesLife;
+
+    p.size = 1.0 + Math.random() * 2.0; // Мелкие (1-3 px)
+    p.color = `rgb(255, 255, 255)`;
+    p.alpha = 0.3 + Math.random() * 0.7; // Разная прозрачность
+    p.blur = Math.random() < 0.5 ? 2 : 0; // 50% с размытием
+    particles.push(p);
+  }
+
   // Полная очистка (например, при смене мира / перезапуске).
   function clear() {
     for (let i = 0; i < particles.length; i++) release(particles[i]);
@@ -279,6 +310,7 @@ window.Particles = (function () {
     spawnExplosion: spawnExplosion, // Цепная реакция при съедании линий
     spawnImpact: spawnImpact,       // Взрыв частиц при жёстком приземлении фигуры
     setTransform: setTransform,     // Масштаб и смещение игрового поля (задаёт main.js)
+    spawnAmbient: spawnAmbient,     // Медленная фоновая частица на паузе (экранные координаты)
     update: update,
     clear: clear,
     count: count
