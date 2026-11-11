@@ -482,48 +482,45 @@ document.addEventListener('touchend', function(e) {
   // фигурками, ни возврат её на место — эта логика идёт следом.
   const noFingersLeft = e.touches.length === 0;
 
-  // Если мы тащили фигурку — проверяем, в какую клетку её бросили.
-  // Бросок допускается в ЛЮБУЮ клетку поля, а не только в соседнюю.
+  // Если мы тащили фигурку, проверяем, куда ее бросили
   if (Match3Game.draggedTile) {
     const rect = window.App.canvas.getBoundingClientRect();
     const scale = rect.width / 320;
     const endCol = Math.floor((e.changedTouches[0].clientX - rect.left) / scale / Match3Game.cellSize);
     const endRow = Math.floor((e.changedTouches[0].clientY - rect.top) / scale / Match3Game.cellSize);
 
-    const dropX = (e.changedTouches[0].clientX - rect.left) / scale;
-    const dropY = (e.changedTouches[0].clientY - rect.top) / scale;
+    const fromRow = Match3Game.draggedTile.row;
+    const fromCol = Match3Game.draggedTile.col;
 
+    // Обмен засчитывается, ТОЛЬКО если он реально состоялся (создал линию).
+    // swapTiles возвращает false, когда откатила ход — тогда нужен возврат.
     let didSwap = false;
     if (endRow >= 0 && endRow < Match3Game.rows && endCol >= 0 && endCol < Match3Game.cols) {
-      if (endRow !== Match3Game.draggedTile.row || endCol !== Match3Game.draggedTile.col) {
-        // swapTiles принимает любые координаты и сама откатывает ход,
-        // если линия не сложилась (вернёт false).
-        didSwap = Match3Game.swapTiles(
-          Match3Game.draggedTile.row,
-          Match3Game.draggedTile.col,
-          endRow,
-          endCol
-        );
+      if (endRow !== fromRow || endCol !== fromCol) {
+        didSwap = Match3Game.swapTiles(fromRow, fromCol, endRow, endCol);
       }
     }
 
-    // Ход не состоялся (бросили мимо поля, в ту же клетку или обмен откатился) —
-    // плавно возвращаем фигурку на её родное место из точки отпускания.
+    // Обмена не было (бросили мимо, в ту же клетку или ход откатился) —
+    // плавно возвращаем фигурку в её клетку из точки, где отпустили палец.
     if (!didSwap) {
-      const fromCol = Match3Game.draggedTile.col;
-      const fromRow = Match3Game.draggedTile.row;
+      // Куда фигурка должна вернуться (позиция её родной клетки)
+      const targetX = Match3Game.offsetX + fromCol * Match3Game.cellSize;
+      const targetY = Match3Game.offsetY + fromRow * Match3Game.cellSize;
+
+      // Откуда она стартует — точка, где палец отпустили
+      const startX = (e.changedTouches[0].clientX - rect.left) / scale - Match3Game.cellSize / 2;
+      const startY = (e.changedTouches[0].clientY - rect.top) / scale - Match3Game.cellSize / 2;
 
       Match3Game.returningTile = {
         row: fromRow,
         col: fromCol,
-        // startX/startY — откуда стартует анимация возврата (точка отпускания)
-        startX: dropX - Match3Game.cellSize / 2,
-        startY: dropY - Match3Game.cellSize / 2,
-        currentX: dropX - Match3Game.cellSize / 2,
-        currentY: dropY - Match3Game.cellSize / 2,
-        // Куда фигурка возвращается (позиция её родной клетки)
-        targetX: Match3Game.offsetX + fromCol * Match3Game.cellSize,
-        targetY: Match3Game.offsetY + fromRow * Match3Game.cellSize,
+        startX: startX,
+        startY: startY,
+        currentX: startX,
+        currentY: startY,
+        targetX: targetX,
+        targetY: targetY,
         t: 0 // Прогресс анимации: 0 — старт, 1 — на месте
       };
     }

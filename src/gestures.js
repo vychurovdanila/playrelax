@@ -18,6 +18,13 @@
    ============================================================ */
 const TWO_FINGER_SWIPE_THRESHOLD = 30;
 
+// Флаг мультитача: true, если в текущем жесте участвовали 2 пальца.
+// Нужен, чтобы сбрасывать фигурку Match-3 только после мультитач-жеста,
+// а не при каждом завершении обычного одиночного перетаскивания —
+// иначе дальние и диагональные перетаскивания обрываются до того,
+// как match3.js успеет их обработать.
+let wasMultiTouch = false;
+
 // Отдельное состояние для ДВУХпальцевого жеста: одиночный свайп игры
 // использует свои touchStartX/touchStartY (объявлены в game.js) и не мешает.
 let twoFingerStartX = null;
@@ -44,6 +51,7 @@ document.addEventListener('touchstart', (e) => {
     return;
   }
   if (e.touches.length === 2) {
+    wasMultiTouch = true;
     // Принудительно отпускаем фигурку в Match-3
     if (window.Match3Game) {
       window.Match3Game.draggedTile = null;
@@ -92,10 +100,11 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: true, capture: true });
 
 document.addEventListener('touchend', (e) => {
-  // Если все пальцы убраны — принудительно отпускаем фигурку
-  if (e.touches.length === 0 && window.Match3Game) {
+  // Сбрасываем фигурку только если это был мультитач-жест
+  if (wasMultiTouch && e.touches.length === 0 && window.Match3Game) {
     window.Match3Game.draggedTile = null;
     window.Match3Game.returningTile = null;
+    wasMultiTouch = false;
   }
   // Три пальца: тап = вкл/выкл звук, свайп = следующий трек.
   if (threeFingerStartX !== null && e.changedTouches.length > 0) {
@@ -160,4 +169,21 @@ document.addEventListener('touchend', (e) => {
     // Гасим жест, чтобы канвас не воспринял его как тап/свайп игры.
     e.stopImmediatePropagation();
   }
+}, { passive: true, capture: true });
+
+// touchcancel приходит, когда система сама обрывает жест (свайп от края экрана,
+// переключение приложения, звонок). touchend при этом НЕ срабатывает, поэтому
+// фигурка Match-3 остаётся «взятой» и залипает в руке до следующего касания.
+// Отпускаем её и сбрасываем состояние мультитача принудительно.
+document.addEventListener('touchcancel', () => {
+  if (window.Match3Game) {
+    window.Match3Game.draggedTile = null;
+    window.Match3Game.returningTile = null;
+  }
+  wasMultiTouch = false;
+  twoFingerStartX = null;
+  twoFingerStartY = null;
+  lastTwoFingerAxis = null;
+  threeFingerStartX = null;
+  threeFingerStartY = null;
 }, { passive: true, capture: true });
