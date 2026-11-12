@@ -17,6 +17,14 @@ window.App = {
   // (искры летели ещё до взрыва текста).
   suspended: false,
 
+  // --- Замер FPS и динамическая оптимизация ---
+  // fpsFrames накапливает кадры за текущую секунду, fpsLastTime — отметка
+  // начала окна замера. Если за окно набралось меньше 40 кадров — включаем
+  // режим максимальной оптимизации (отключаем lighter и режем частицы).
+  fpsFrames: 0,
+  fpsLastTime: performance.now(),
+  lowPerformanceMode: false,
+
   init: function() {
     this.loop();
   },
@@ -71,6 +79,22 @@ window.App = {
 
   loop: function() {
     requestAnimationFrame(() => this.loop());
+
+    // Замер FPS
+    this.fpsFrames++;
+    const now = performance.now();
+    if (now - this.fpsLastTime >= 1000) {
+      const currentFps = this.fpsFrames;
+      this.fpsFrames = 0;
+      this.fpsLastTime = now;
+
+      // Если FPS упал ниже 40 и мы еще не в режиме оптимизации
+      if (currentFps < 40 && !this.lowPerformanceMode) {
+        console.warn(`Низкий FPS (${currentFps}). Включаем режим максимальной оптимизации.`);
+        this.lowPerformanceMode = true;
+        if (window.Particles) window.Particles.setLowPerformanceMode(true);
+      }
+    }
 
     // Генерация медленных частиц на паузе
     if (document.body.classList.contains('is-paused') && window.Particles) {

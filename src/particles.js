@@ -40,6 +40,11 @@ window.Particles = (function () {
   const DECAY_FAST = Math.max(LIFE_DECAY_MIN, LIFE_DECAY_MAX); // быстрее гаснет
   const DECAY_SLOW = Math.min(LIFE_DECAY_MIN, LIFE_DECAY_MAX); // дольше живёт
 
+  // --- Режим максимальной оптимизации ---
+  // Включается извне (main.js) при просадке FPS: отключает аддитивное
+  // смешивание (lighter) и урезает количество частиц вдвое.
+  let lowPerfMode = false;
+
   // --- Система координат «игровое поле → экран» ---
   // Игровые модули (Тетрис, Match-3) спавнят частицы в координатах игрового
   // поля: у #game битмап 320×640, а на экране он растянут по CSS
@@ -135,7 +140,9 @@ window.Particles = (function () {
 
     ctx.save();
     // Аддитивное смешивание — частицы светятся и складываются в «искры».
-    ctx.globalCompositeOperation = 'lighter';
+    // В экономном режиме (просадка FPS) — обычный source-over: дешевле и
+    // без накопления перекрывающихся пикселей.
+    ctx.globalCompositeOperation = lowPerfMode ? 'source-over' : 'lighter';
 
     // Идём с конца: удаляем мёртвые через splice, индексы ниже не сдвигаются.
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -183,6 +190,7 @@ window.Particles = (function () {
   function spawnExplosion(x, y, color, count) {
     // Снижаем количество частиц на 30% для производительности
     count = Math.max(1, Math.floor(count * 0.7));
+    if (lowPerfMode) count = Math.floor(count * 0.5); // Еще минус 50% в экономном режиме
 
     // Пересчёт координат игрового поля в экранные (см. setTransform выше).
     const screenX = toScreenX(x);
@@ -231,6 +239,7 @@ window.Particles = (function () {
   function spawnImpact(x, y, color, count) {
     // Снижаем количество частиц на 30% для производительности
     count = Math.max(1, Math.floor(count * 0.7));
+    if (lowPerfMode) count = Math.floor(count * 0.5); // Еще минус 50% в экономном режиме
 
     // Пересчёт координат игрового поля в экранные (см. setTransform выше).
     const screenX = toScreenX(x);
@@ -290,6 +299,16 @@ window.Particles = (function () {
     particles.push(p);
   }
 
+  // Включение/выключение режима максимальной оптимизации (вызывает main.js
+  // при просадке FPS). Пока включён — рисуем обычным source-over и режем
+  // количество частиц наполовину.
+  function setLowPerformanceMode(isLow) {
+    lowPerfMode = !!isLow;
+    if (lowPerfMode) {
+      console.log("Particles: Low Performance Mode ENABLED");
+    }
+  }
+
   // Полная очистка (например, при смене мира / перезапуске).
   function clear() {
     for (let i = 0; i < particles.length; i++) release(particles[i]);
@@ -310,6 +329,7 @@ window.Particles = (function () {
     spawnAmbient: spawnAmbient,     // Медленная фоновая частица на паузе (экранные координаты)
     update: update,
     clear: clear,
-    count: count
+    count: count,
+    setLowPerformanceMode: setLowPerformanceMode // Экономный режим при просадке FPS (вызывает main.js)
   };
 })();
