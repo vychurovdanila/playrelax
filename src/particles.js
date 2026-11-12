@@ -90,6 +90,8 @@ window.Particles = (function () {
   // Испускаем ОДНУ частицу в точке (x, y) с заданным цветом.
   // Размер и время жизни — случайные, чтобы облако было неоднородным.
   function spawnOne(x, y, color) {
+    // В режиме низкой производительности оставляем только 25% частиц шлейфа
+    if (lowPerfMode && Math.random() > 0.25) return;
     if (particles.length >= MAX_PARTICLES) return;
 
     const p = acquire();
@@ -149,6 +151,21 @@ window.Particles = (function () {
       const p = particles[i];
 
       // Физика: позиция -> вязкость -> жизнь.
+      // Применяем ускорение (для частиц паузы)
+      if (p.ax !== undefined) {
+        p.vx += p.ax;
+        p.vy += p.ay;
+        // Ограничиваем скорость, чтобы не улетали за экран
+        const maxSpeed = 2.0;
+        if (Math.abs(p.vx) > maxSpeed) p.vx = Math.sign(p.vx) * maxSpeed;
+        if (Math.abs(p.vy) > maxSpeed) p.vy = Math.sign(p.vy) * maxSpeed;
+        
+        // Волновое движение (синусоидальное смещение)
+        p.wavePhase += p.waveSpeed;
+        p.x += Math.cos(p.wavePhase) * p.waveAmp * 0.1;
+        p.y += Math.sin(p.wavePhase) * p.waveAmp * 0.1;
+      }
+
       // Завихрение: поворачиваем вектор скорости, чтобы разлет был «живым».
       if (p.swirl) {
         const cos = Math.cos(p.swirl);
@@ -273,18 +290,29 @@ window.Particles = (function () {
   // main.js сбрасывает её в единичную, пока игра на паузе).
   // Живёт долго (3–20 с) и еле дрейфует — создаёт спокойный «звёздный» фон.
   function spawnAmbient(x, y) {
-    // Ограничение: не больше 50 частиц одновременно
-    if (particles.length >= 50) return;
+    // Ограничение: не больше 25 частиц одновременно
+    if (particles.length >= 25) return;
 
     const p = acquire();
     p.x = x;
     p.y = y;
-    // Медленные случайные траектории
     const angle = Math.random() * Math.PI * 2;
-    const speed = 0.1 + Math.random() * 0.3;
+    // Скорость от медленной к быстрой (увеличенный разброс)
+    const speed = 0.15 + Math.random() * 1.5; 
     p.vx = Math.cos(angle) * speed;
     p.vy = Math.sin(angle) * speed;
-    p.swirl = (Math.random() - 0.5) * 0.1; // Легкое завихрение
+    
+    // Добавляем случайное ускорение (частица может ускоряться в полете)
+    p.ax = (Math.random() - 0.5) * 0.02;
+    p.ay = (Math.random() - 0.5) * 0.02;
+    
+    // Хаотичное закручивание (в обе стороны с разной силой)
+    p.swirl = (Math.random() - 0.5) * 0.4;
+    
+    // Добавляем случайную частоту "дыхания" (волнообразное движение)
+    p.waveSpeed = 0.01 + Math.random() * 0.03;
+    p.waveAmp = 0.5 + Math.random() * 1.5;
+    p.wavePhase = Math.random() * Math.PI * 2;
 
     p.life = 1.0;
     // Время жизни от 3 до 20 секунд (при 60fps: от 180 до 1200 кадров)
@@ -292,9 +320,9 @@ window.Particles = (function () {
     const framesLife = (3 + Math.random() * 17) * 60;
     p.decay = 1 / framesLife;
 
-    p.size = 1.0 + Math.random() * 2.0; // Мелкие (1-3 px)
+    p.size = 0.9 + Math.random() * 2.0; // Мелкие (1-3 px)
     p.color = `rgb(255, 255, 255)`;
-    p.alpha = 0.3 + Math.random() * 0.7; // Разная прозрачность
+    p.alpha = 0.25 + Math.random() * 0.7; // Разная прозрачность
     p.blur = Math.random() < 0.5 ? 2 : 0; // 50% с размытием
     particles.push(p);
   }

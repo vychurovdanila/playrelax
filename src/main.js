@@ -92,6 +92,7 @@ window.App = {
       if (currentFps < 40 && !this.lowPerformanceMode) {
         console.warn(`Низкий FPS (${currentFps}). Включаем режим максимальной оптимизации.`);
         this.lowPerformanceMode = true;
+        document.body.classList.add('low-perf-mode');
         if (window.Particles) window.Particles.setLowPerformanceMode(true);
       }
     }
