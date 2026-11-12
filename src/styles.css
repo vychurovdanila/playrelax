@@ -68,7 +68,6 @@ canvas {
   /* 95vw — небольшой отступ от краёв, чтобы рамка гарантированно была видна */
   max-width: 95vw;
   max-height: 80dvh;
-  mix-blend-mode: screen; /* Режим наложения: белое будет светиться */
 }
 
 /* ---------- Затемняющая плашка поверх видеофона ----------
@@ -501,7 +500,6 @@ h1, h2, h3, .retro-text, #start-btn, #btn-unmute {
   max-width: none;
   max-height: none;
   filter: none;
-  mix-blend-mode: screen;
 }
 
 

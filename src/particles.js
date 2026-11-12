@@ -26,7 +26,7 @@ window.Particles = (function () {
   // --- Настройки эффекта (правь тут) ---
   const MAX_PARTICLES = 3200;   // Жёсткий потолок: защита от перегрузки памяти
                                 // (с запасом: 40 блоков × ~14 частиц на 4 линии)
-  const PER_CELL_CHANCE = 0.13; // Шлейф будет гуще
+  const PER_CELL_CHANCE = 0.09; // Шлейф от фигур (−30% частиц: было 0.13)
   const LIFE_DECAY_MIN = 0.0035; // Дольше живут
   const LIFE_DECAY_MAX = 0.0012; // Еще дольше живут
   const SIZE_MIN = 0.3;         // Минимальный радиус частицы
@@ -169,18 +169,9 @@ window.Particles = (function () {
       ctx.globalAlpha = p.life * p.life * (p.alpha || 1); // Квадрат — гаснет мягче к концу; p.alpha — разброс прозрачности
       ctx.fillStyle = p.color;
 
-      // Применяем размытие, если оно задано
-      if (p.blur) {
-        ctx.shadowBlur = p.blur * 2;
-        ctx.shadowColor = p.color;
-      } else {
-        ctx.shadowBlur = 0;
-      }
-
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0; // Сбрасываем размытие для следующей частицы
     }
 
     ctx.restore();
@@ -190,6 +181,9 @@ window.Particles = (function () {
   // Разлетается веером на 360 градусов, скорость и размер — случайные,
   // гаснет быстро (decay 0.012–0.028 ≈ 36–80 кадров), чтобы взрывы не забивали экран.
   function spawnExplosion(x, y, color, count) {
+    // Снижаем количество частиц на 30% для производительности
+    count = Math.max(1, Math.floor(count * 0.7));
+
     // Пересчёт координат игрового поля в экранные (см. setTransform выше).
     const screenX = toScreenX(x);
     const screenY = toScreenY(y);
@@ -235,6 +229,9 @@ window.Particles = (function () {
 
   // Взрыв при приземлении (частицы летят вверх и в стороны)
   function spawnImpact(x, y, color, count) {
+    // Снижаем количество частиц на 30% для производительности
+    count = Math.max(1, Math.floor(count * 0.7));
+
     // Пересчёт координат игрового поля в экранные (см. setTransform выше).
     const screenX = toScreenX(x);
     const screenY = toScreenY(y);
