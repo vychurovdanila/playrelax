@@ -6,6 +6,20 @@
      - Match-3:   window.Match3Game.update() / .draw(ctx)  (src/match3.js)
    Подключается ПОСЛЕДНИМ: к моменту DOMContentLoaded модули уже объявлены.
    ============================================================ */
+/* ============================================================
+   ЦЕЛИ ЯНДЕКС.МЕТРИКИ.
+   Номер счётчика — тот же плейсхолдер XXXXXX, что и в src/index.html:
+   при подключении реального счётчика менять в обоих местах.
+   Отправка обёрнута в проверку типа: если скрипт Метрики не загрузился
+   (блокировщик, офлайн) или ym ещё не создан — просто ничего не делаем,
+   ошибок в консоли не будет.
+   ============================================================ */
+const YM_COUNTER_ID = 114287302;
+
+function trackGoal(goal) {
+  if (typeof ym === 'function') ym(YM_COUNTER_ID, 'reachGoal', goal);
+}
+
 window.App = {
   currentGame: 'tetris',
   canvas: document.getElementById('game'),
@@ -46,6 +60,9 @@ window.App = {
 
     // Запускаем звук: случайный порядок треков + воспроизведение.
     if (window.audioManager) window.audioManager.startMusic();
+
+    // Цель Метрики: пользователь реально начал играть (нажал [ НАЧАЛО ]).
+    trackGoal('game_start');
   },
 
   switchGame: function(gameName) {
@@ -182,4 +199,51 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ui-layer').style.display = 'none';
 
   window.Onboarding.start();
+});
+
+/* ============================================================
+   ЦЕЛИ МЕТРИКИ: pause_toggle и world_change.
+   Обе точки — внутренние методы чужих модулей (GameAPI из tetris.js,
+   VideoManager из video.js). Чтобы не править эти файлы, оборачиваем
+   методы здесь: исходная логика вызывается всегда и первой, цель
+   отправляется после — так телеметрия не может сломать игру.
+
+   Пауза доступна двумя путями:
+     1) тап двумя пальцами → window.GameAPI.togglePause();
+     2) пробел на десктопе     → собственный обработчик keydown в tetris.js.
+   Пункт 2 переключает isPaused напрямую, мимо GameAPI, поэтому ловим его
+   отдельным слушателем. Слушатель только читает событие (не preventDefault
+   и не stopPropagation), поэтому штатному обработчику он не мешает.
+
+   Смена мира (видеофона): вертикальный свайп двумя пальцами и Tab
+   на десктопе — оба пути идут через window.VideoManager.next().
+   ============================================================ */
+window.addEventListener('DOMContentLoaded', () => {
+  // --- gameAPI.togglePause → pause_toggle ---
+  if (window.GameAPI && typeof window.GameAPI.togglePause === 'function') {
+    const originalTogglePause = window.GameAPI.togglePause;
+    window.GameAPI.togglePause = function () {
+      originalTogglePause.apply(this, arguments);
+      trackGoal('pause_toggle');
+    };
+  }
+
+  // --- пробел → pause_toggle ---
+  // passive: true — обработчик не вызывает preventDefault, пассивный режим
+  // не блокирует прокрутку страницы. Пробел ловим так же, как tetris.js:
+  // по e.code и e.key, чтобы работало на любой раскладке.
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.key === ' ') {
+      trackGoal('pause_toggle');
+    }
+  }, { passive: true });
+
+  // --- VideoManager.next → world_change ---
+  if (window.VideoManager && typeof window.VideoManager.next === 'function') {
+    const originalNext = window.VideoManager.next;
+    window.VideoManager.next = function () {
+      originalNext.apply(this, arguments);
+      trackGoal('world_change');
+    };
+  }
 });

@@ -6,7 +6,22 @@
        viewport-fit=cover — контент заходит под системные панели (вырез, home-бар),
        поэтому снизу не остаётся тёмной полосы-отступа. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>playrelax</title>
+  <title>PlayRelax — игра для снятия стресса и релаксации онлайн</title>
+  <meta name="description" content="Бесконечный тетрис, в котором невозможно проиграть. Снимайте стресс и восстанавливайте внимание под медитативные видеофоны и музыку. Бесплатно.">
+  <meta name="robots" content="index, follow">
+  <meta name="yandex-verification" content="ec9328100c3547ab" />
+  <meta name="google-site-verification" content="tNRzWNfjMb4SG8TQ2D7uYndPivnYzy1L2QHat5t04X0" />
+  <!-- Яндекс.Метрика: счётчик загружается асинхронно, вебвизор включён.
+       Номер счётчика — плейсхолдер XXXXXX, заменить на реальный ID.
+       Цели game_start / pause_toggle / world_change отправляются из src/main.js. -->
+  <script>
+    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+    m[i].l=1*new Date();
+    for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+    k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+    (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+    ym(114287302, "init", { clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true });
+  </script>
   <!-- Шрифты Google Fonts: Nata Sans — интерфейс, Tiny5 — пиксельные заголовки.
        preconnect — соединение с fonts.googleapis.com/gstatic.com открывается
        заранее, чтобы запрос шрифта не ждал лишнего рукопожатия. -->
@@ -17,6 +32,20 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+
+  <!-- SEO-слой: заголовки и текст для поисковых систем.
+       Скрыт визуально (left:-9999px), но остаётся доступным краулерам.
+       Не display:none — иначе часть поисковиков сочтёт текст скрытым. -->
+  <div class="seo-text" style="position:absolute;left:-9999px;">
+    <h1>PlayRelax: игра для релаксации и снятия стресса</h1>
+    <p>PlayRelax — цифровой инструмент для психологической разгрузки. Здесь нет экрана «Game Over» и соревновательного элемента. Бесконечный тетрис и медитативные миры помогают переключиться, успокоить нервную систему и восстановить внимание после рабочего дня.</p>
+    <h2>Почему PlayRelax помогает расслабиться?</h2>
+    <ul>
+      <li>Режим «невозможно проиграть»: отсутствие давления результата.</li>
+      <li>Визуальная релаксация: плавные видеофоны и частицы.</li>
+      <li>Фоновое сопровождение: музыка и лоу-фай атмосфера.</li>
+    </ul>
+  </div>
 
   <!-- Видеофон Kinescope: ДВА iframe друг поверх друга для плавного кроссфейда
        при смене мира (.bg-iframe.active виден, второй скрыт и заранее
@@ -122,5 +151,25 @@
       navigator.serviceWorker.register('sw.js');
     }
   </script>
+<!-- Структурированные данные Schema.org: игра + веб-приложение.
+       Даёт поиску тип контента, цену (бесплатно) и платформу. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": ["VideoGame", "WebApplication"],
+    "name": "PlayRelax",
+    "url": "https://playrelax.ru",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0" },
+    "description": "Бесконечный тетрис и медитативные игры для снятия стресса и релаксации."
+  }
+  </script>
+  <!-- Скрытая ссылка на /about.html: доступна краулерам, визуально скрыта.
+       Размещена в самом конце body, после всех игровых контейнеров и скриптов,
+       чтобы не влиять на онбординг и вёрстку. -->
+  <footer style="position:absolute; left:-9999px;">
+    <a href="/about.html">О проекте и наука расслабления</a>
+  </footer>
 </body>
 </html>
